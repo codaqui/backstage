@@ -24,7 +24,7 @@ node_modules/
 !.yarn/versions
 
 # Node version directives
-.nvmrc
+# .nvmrc
 
 # dotenv environment variables file
 .env
