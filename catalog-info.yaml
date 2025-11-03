@@ -1,7 +1,7 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: codaqui-portal
+  name: codaqui-backstage
   description: An example of a Backstage application.
   # Example for optional annotations
   # annotations:
@@ -9,5 +9,5 @@ metadata:
   #   backstage.io/techdocs-ref: dir:.
 spec:
   type: website
-  owner: guests
+  owner: conselho
   lifecycle: experimental
