@@ -1,10 +1,17 @@
-# [Backstage](https://backstage.io)
+# Codaqui Backstage Portal
 
-This is your newly scaffolded Backstage App, Good Luck!
+Welcome to the Codaqui Backstage Portal!
 
-To start the app, run:
+- Explore the documentation at [Backstage](https://backstage.io)
 
-```sh
+## Getting Started
+
+### Running with Podman Compose (Development)
+
+```bash
+nvm use 22
 yarn install
-yarn start
+podman compose up --build --force-recreate
 ```
+
+
