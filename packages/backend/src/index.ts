@@ -2,7 +2,8 @@ import { createBackend } from '@backstage/backend-defaults';
 
 const backend = createBackend();
 
-backend.add(import('@backstage/plugin-app-backend'));
+// Separate Frontend (app)
+// backend.add(import('@backstage/plugin-app-backend'));
 backend.add(import('@backstage/plugin-proxy-backend'));
 
 // scaffolder plugin
@@ -28,6 +29,9 @@ backend.add(import('@backstage/plugin-catalog-backend'));
 backend.add(
   import('@backstage/plugin-catalog-backend-module-scaffolder-entity-model'),
 );
+
+// https://backstage.io/docs/integrations/github/discovery
+backend.add(import('@backstage/plugin-catalog-backend-module-github'));
 
 // https://backstage.io/docs/integrations/github/org
 backend.add(import('@backstage/plugin-catalog-backend-module-github-org'));
