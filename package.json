@@ -9,7 +9,6 @@
     "start": "backstage-cli repo start",
     "build:backend": "yarn workspace backend build",
     "build:all": "backstage-cli repo build --all",
-    "build-image": "yarn workspace backend build-image",
     "tsc": "tsc",
     "tsc:full": "tsc --skipLibCheck false --incremental false",
     "clean": "backstage-cli repo clean",
@@ -34,7 +33,8 @@
     "@playwright/test": "^1.32.3",
     "node-gyp": "^10.0.0",
     "prettier": "^2.3.2",
-    "typescript": "~5.8.0"
+    "typescript": "~5.8.0",
+    "webpack": "^5.102.1"
   },
   "resolutions": {
     "@types/react": "^18",
