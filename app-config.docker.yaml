@@ -1,0 +1,57 @@
+# Backstage override configuration for your local development with Docker Compose
+backend:
+  database:
+    client: pg
+    connection:
+      host: ${POSTGRES_HOST}
+      port: ${POSTGRES_PORT}
+      user: ${POSTGRES_USER}
+      password: ${POSTGRES_PASSWORD}
+      database: ${POSTGRES_DB}
+auth:
+  # see https://backstage.io/docs/auth/ to learn about auth providers
+  environment: development
+  providers:
+    # See https://backstage.io/docs/auth/guest/provider
+    guest: {}
+    github:
+      development:
+        clientId: ${GITHUB_CLIENT_ID}
+        clientSecret: ${GITHUB_CLIENT_SECRET}
+        signIn:
+          resolvers:
+            # Matches the GitHub username with the Backstage user entity name.
+            # See https://backstage.io/docs/auth/github/provider#resolvers for more resolvers.
+            - resolver: usernameMatchingUserEntityName
+integrations:
+  github:
+    - host: github.com
+      apps:
+        - appId: ${GITHUB_ORG_APP_ID}
+          webhookUrl: ${GITHUB_ORG_WEBHOOK_URL}
+          clientId: ${GITHUB_ORG_CLIENT_ID}
+          clientSecret: ${GITHUB_ORG_CLIENT_SECRET}
+          webhookSecret: ${GITHUB_ORG_WEBHOOK_SECRET}
+          privateKey: ${GITHUB_ORG_PRIVATE_KEY}
+catalog:
+  providers:
+    github: # GitHub Source for components
+      codaquiPortal:
+        organization: codaqui
+        catalogPath: '/catalog-info.yaml'
+        filters:
+          branch: 'main'
+          repository: '.*'
+        schedule:
+          initialDelay: { seconds: 30 }
+          frequency: { minutes: 30 }
+          timeout: { minutes: 3 }
+    githubOrg: # Organization source for users and groups
+      - id: github_organization_data_codaqui
+        githubUrl: https://github.com
+        orgs: ['codaqui']
+        schedule:
+          initialDelay: { seconds: 30 }
+          frequency: { hours: 30 }
+          timeout: { minutes: 3 }
+    
