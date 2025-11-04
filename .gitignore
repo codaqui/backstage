@@ -29,6 +29,8 @@ node_modules/
 # dotenv environment variables file
 .env
 .env.test
+.env.front
+.env.database
 
 # Build output
 dist
