@@ -1,0 +1,110 @@
+# Multi-stage build for Backstage Backend
+# Stage 1: Build the backend application
+FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS build
+
+# Stage 1.1: Prepare environment
+ARG NODE_ENV
+ARG NODE_OPTIONS
+ARG CONFIG_FILE
+ENV NODE_ENV=${NODE_ENV:-development}
+ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
+ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
+
+# Set Python interpreter for `node-gyp` to use
+ENV PYTHON=/usr/bin/python3
+
+# Install dependencies needed for build
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3 \
+    g++ \
+    build-essential \
+    libsqlite3-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json yarn.lock .yarnrc.yml backstage.json ./
+COPY .yarn ./.yarn
+
+# Enable corepack for yarn
+RUN corepack enable
+
+# Copy workspace configuration
+COPY packages/app/package.json ./packages/app/package.json
+COPY packages/backend/package.json ./packages/backend/package.json
+
+# Install dependencies
+RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked \
+    yarn install --immutable
+
+# Copy the rest of the application
+COPY . .
+
+# Build the backend
+RUN yarn workspace backend build
+
+# Stage 2: Production runtime
+FROM public.ecr.aws/docker/library/node:22-bookworm-slim
+
+# Stage 2.1: Prepare environment
+ARG NODE_ENV
+ARG NODE_OPTIONS
+ARG CONFIG_FILE
+ENV NODE_ENV=${NODE_ENV:-development}
+ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
+ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
+
+# Set Python interpreter for `node-gyp` to use
+ENV PYTHON=/usr/bin/python3
+
+# Install runtime dependencies (including curl for healthchecks)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3 \
+    libsqlite3-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Enable corepack as root before switching to node user
+RUN corepack enable
+
+# Create cache directory for corepack and set permissions
+RUN mkdir -p /home/node/.cache/node/corepack && \
+    chown -R node:node /home/node/.cache
+
+# From here on we use the least-privileged `node` user to run the backend.
+USER node
+
+WORKDIR /app
+
+# Copy files needed by Yarn
+COPY --from=build --chown=node:node /app/.yarn /app/.yarn
+COPY --from=build --chown=node:node /app/.yarnrc.yml ./
+COPY --from=build --chown=node:node /app/backstage.json ./
+
+# Copy built backend and dependencies
+COPY --from=build --chown=node:node /app/yarn.lock /app/package.json ./
+COPY --from=build --chown=node:node /app/packages/backend/dist/skeleton.tar.gz ./
+RUN tar xzf skeleton.tar.gz && rm skeleton.tar.gz
+
+# Install production dependencies
+RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid=1000 \
+    yarn workspaces focus --all --production && rm -rf "$(yarn cache clean)"
+
+# Copy the built backend bundle and config files
+COPY --from=build --chown=node:node /app/packages/backend/dist/bundle.tar.gz ./
+RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
+
+# Copy configuration files
+COPY --chown=node:node app-config*.yaml ./
+
+EXPOSE 7007
+
+CMD ["sh", "-c", "node packages/backend --config app-config.yaml --config ${CONFIG_FILE}"]
