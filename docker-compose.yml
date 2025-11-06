@@ -12,11 +12,11 @@ services:
       - path: .env.db
         required: false
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U backstage"]
+      test: ['CMD-SHELL', 'pg_isready -U backstage']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,22 +33,31 @@ services:
         - NODE_OPTIONS=${NODE_OPTIONS}
         - CONFIG_FILE=${CONFIG_FILE}
     restart: unless-stopped
-    env_file: 
+    env_file:
       - path: .env.example
         required: false
       - path: .env
         required: false
     ports:
-      - "7007:7007"
+      - '7007:7007'
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "--silent", "--max-time", "5", "http://localhost:7007/.backstage/health/v1/readiness"]
+      test:
+        [
+          'CMD',
+          'curl',
+          '-f',
+          '--silent',
+          '--max-time',
+          '5',
+          'http://localhost:7007/.backstage/health/v1/readiness',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 30s
     networks:
       - backstage-network
 
@@ -68,12 +77,21 @@ services:
       - path: .env.front
         required: false
     ports:
-      - "3000:80"
+      - '3000:80'
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "--silent", "--max-time", "5", "http://localhost:80/healthz"]
+      test:
+        [
+          'CMD',
+          'curl',
+          '-f',
+          '--silent',
+          '--max-time',
+          '5',
+          'http://localhost:80/healthz',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
