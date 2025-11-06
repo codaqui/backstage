@@ -38,12 +38,6 @@ integrations:
           webhookSecret: ${GITHUB_ORG_WEBHOOK_SECRET}
           privateKey: ${GITHUB_ORG_PRIVATE_KEY}
 catalog:
-  rules:
-    - allow: [Component, System, API, Resource, Location, User, Group]
-  locations:
-    # Fixed guest/guests user/group definitions
-    - type: file
-      target: ./default/guest.yaml
   providers:
     github: # GitHub Source for components
       codaquiPortal:

@@ -1,5 +1,5 @@
 app:
-  title: "Codaqui Portal"
+  title: 'Codaqui Portal'
   baseUrl: http://localhost:3000
 
 organization:
@@ -64,9 +64,6 @@ techdocs:
 
 auth:
   # see https://backstage.io/docs/auth/ to learn about auth providers
-  providers:
-    # See https://backstage.io/docs/auth/guest/provider
-    guest: {}
 
 scaffolder:
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
@@ -83,7 +80,14 @@ catalog:
     pullRequestBranchName: backstage-integration
   rules:
     - allow: [Component, System, API, Resource, Location]
-    
+  locations:
+    # Fixed guest/guests user/group definitions
+    - type: file
+      target: ./default/guest.yaml
+      rules:
+        - allow: [User, Group]
+
+
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
 
