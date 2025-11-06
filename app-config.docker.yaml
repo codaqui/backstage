@@ -8,6 +8,12 @@ backend:
       user: ${POSTGRES_USER}
       password: ${POSTGRES_PASSWORD}
       database: ${POSTGRES_DB}
+  # Enable debug logging for catalog providers
+  # logger:
+  #   level: debug
+  #   filters:
+  #     catalog:
+  #       level: debug
 auth:
   # see https://backstage.io/docs/auth/ to learn about auth providers
   environment: development

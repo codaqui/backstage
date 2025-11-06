@@ -1,9 +1,30 @@
 import { createBackend } from '@backstage/backend-defaults';
+import { createBackendModule } from '@backstage/backend-plugin-api';
+import { githubOrgEntityProviderTransformsExtensionPoint } from '@backstage/plugin-catalog-backend-module-github-org';
+import { myTeamTransformer, myUserTransformer } from './transformers';
+
+const githubOrgModule = createBackendModule({
+  pluginId: 'catalog',
+  moduleId: 'github-org-extensions',
+  register(env) {
+    env.registerInit({
+      deps: {
+        githubOrg: githubOrgEntityProviderTransformsExtensionPoint,
+      },
+      async init({ githubOrg }) {
+        githubOrg.setTeamTransformer(myTeamTransformer);
+        githubOrg.setUserTransformer(myUserTransformer);
+      },
+    });
+  },
+});
 
 const backend = createBackend();
 
 // Separate Frontend (app)
 // backend.add(import('@backstage/plugin-app-backend'));
+
+// Maintain the proxy plugin for the frontend app
 backend.add(import('@backstage/plugin-proxy-backend'));
 
 // scaffolder plugin
@@ -35,6 +56,7 @@ backend.add(import('@backstage/plugin-catalog-backend-module-github'));
 
 // https://backstage.io/docs/integrations/github/org
 backend.add(import('@backstage/plugin-catalog-backend-module-github-org'));
+// backend.add(githubOrgModule);
 
 // See https://backstage.io/docs/features/software-catalog/configuration#subscribing-to-catalog-errors
 backend.add(import('@backstage/plugin-catalog-backend-module-logs'));

@@ -28,14 +28,19 @@ class CustomPermissionPolicy implements PermissionPolicy {
     request: PolicyQuery,
     user?: PolicyQueryUser,
   ): Promise<PolicyDecision> {
+    // Se não há nenhuma informação recusa o acesso.
+    if (!user?.info) {
+      return { result: AuthorizeResult.DENY };
+    }
+
     // Lista de entidades que representam usuários/grupos guest
     const guestEntityRefs = ['user:default/guest', 'group:default/guests'];
 
     // Verifica se o usuário atual é guest ou membro do grupo guests
     const isGuestUser =
-      user?.info.ownershipEntityRefs?.some(ref =>
+      user.info.ownershipEntityRefs?.some(ref =>
         guestEntityRefs.includes(ref.toLowerCase()),
-      ) ?? true; // Se não há user info, trata como guest
+      ) ?? false;
 
     // Se for usuário guest, permitir apenas ações de leitura
     if (isGuestUser) {
@@ -44,7 +49,7 @@ class CustomPermissionPolicy implements PermissionPolicy {
         'catalog.entity.read',
         'catalog.location.read',
         'scaffolder.template.parameter.read',
-        'scaffolder.action.execute', // Permite ver templates
+        'scaffolder.action.execute',
       ];
 
       // Verifica se a permissão solicitada é de leitura
@@ -61,6 +66,7 @@ class CustomPermissionPolicy implements PermissionPolicy {
     }
 
     // Para usuários autenticados (não-guests):
+
     // Verificar se é uma permissão relacionada a recursos do catálogo
     if (isResourcePermission(request.permission, 'catalog-entity')) {
       // Para operações no catálogo, usar decisão condicional baseada em ownership

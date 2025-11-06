@@ -69,8 +69,8 @@ scaffolder:
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
 
 catalog:
-  orphanStrategy: delete
-  orphanProviderStrategy: delete
+  # orphanStrategy: delete
+  # orphanProviderStrategy: delete
   processingInterval: { minutes: 5 }
   # https://backstage.io/docs/features/software-catalog/configuration/#stitching-strategy
   stitchingStrategy:
