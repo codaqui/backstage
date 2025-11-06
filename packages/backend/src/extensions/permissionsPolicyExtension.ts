@@ -1,4 +1,5 @@
-import { createBackendModule } from '@backstage/backend-plugin-api';
+import { coreServices, createBackendModule } from '@backstage/backend-plugin-api';
+import type { LoggerService } from '@backstage/backend-plugin-api';
 import {
   AuthorizeResult,
   PolicyDecision,
@@ -16,61 +17,125 @@ import {
 } from '@backstage/plugin-catalog-backend/alpha';
 
 /**
- * Custom Permission Policy para o Codaqui Backstage
+ * Custom Permission Policy for Codaqui Backstage
  *
- * Regras implementadas:
- * 1. Usuário 'guest' e membros do grupo 'guests' têm apenas permissão de leitura (READ) global
- * 2. Para ações que modificam recursos do catálogo, apenas o owner pode executar
- * 3. Outras ações são permitidas por padrão para usuários autenticados
+ * Implemented rules:
+ * 1. Unauthenticated users have READ-only access to catalog entities
+ * 2. User 'guest' and members of 'guests' group have only READ permission when authenticated
+ * 3. Authenticated users can READ all catalog entities
+ * 4. For actions that modify catalog resources (create/update/delete), only the owner can execute
+ * 5. Other actions are allowed by default for authenticated users
  */
 class CustomPermissionPolicy implements PermissionPolicy {
+  private readonly logger: LoggerService;
+
+  constructor(logger: LoggerService) {
+    this.logger = logger;
+  }
+
   async handle(
     request: PolicyQuery,
     user?: PolicyQueryUser,
   ): Promise<PolicyDecision> {
-    // Se não há nenhuma informação recusa o acesso.
-    if (!user?.info) {
+
+    // If there is no user information (unauthenticated), allow only read permissions
+    const hasUserInfo = user?.info !== undefined && user?.info !== null;
+    if (!hasUserInfo) {
+      // List of allowed permissions for unauthenticated users (read-only)
+      const allowedUnauthenticatedPermissions = [
+        'catalog.entity.read',
+        'catalog.location.read',
+        'scaffolder.template.parameter.read',
+      ];
+
+      // Check if requested permission is read-only
+      const isReadPermission =
+        request.permission.name.includes('.read') ||
+        allowedUnauthenticatedPermissions.includes(request.permission.name);
+      
+      if (isReadPermission) {
+        this.logger.debug(`✅ ALLOW: Unauthenticated user accessing read permission`, {
+          permission: request.permission.name,
+        });
+        return { result: AuthorizeResult.ALLOW };
+      }
+
+      // Deny all other actions for unauthenticated users
+      this.logger.warn(`❌ DENY: Unauthenticated user attempting non-read permission`, {
+        permission: request.permission.name,
+      });
       return { result: AuthorizeResult.DENY };
     }
 
-    // Lista de entidades que representam usuários/grupos guest
+    // Debug Logging
+    this.logger.debug('Permission check details', {
+      userId: user.info.userEntityRef,
+      ownershipEntityRefs: user.info.ownershipEntityRefs,
+      permissionName: request.permission.name,
+      permissionAttributes: request.permission.attributes,
+    });
+
+    // List of entities representing guest users/groups
     const guestEntityRefs = ['user:default/guest', 'group:default/guests'];
 
-    // Verifica se o usuário atual é guest ou membro do grupo guests
-    const isGuestUser =
-      user.info.ownershipEntityRefs?.some(ref =>
-        guestEntityRefs.includes(ref.toLowerCase()),
-      ) ?? false;
+    // Check if current user is guest or member of guests group
+    const userEntityRefs = user.info.ownershipEntityRefs || [];
+    const isGuestUser = userEntityRefs.some(entityRef => {
+      const normalizedRef = entityRef.toLowerCase();
+      return guestEntityRefs.includes(normalizedRef);
+    });
 
-    // Se for usuário guest, permitir apenas ações de leitura
+    // If guest user, allow only read actions
     if (isGuestUser) {
-      // Lista de permissões permitidas para guests (apenas leitura)
+
+      // List of allowed permissions for guests (read-only)
       const allowedGuestPermissions = [
         'catalog.entity.read',
         'catalog.location.read',
         'scaffolder.template.parameter.read',
-        'scaffolder.action.execute',
       ];
 
-      // Verifica se a permissão solicitada é de leitura
+      // Check if requested permission is read-only
       const isReadPermission =
         request.permission.name.includes('.read') ||
         allowedGuestPermissions.includes(request.permission.name);
-
+      
+      // Allow only read actions for guests
       if (isReadPermission) {
+        this.logger.debug(`✅ ALLOW: Guest user accessing read permission`, {
+          permission: request.permission.name,
+          userRefs: userEntityRefs,
+        });
         return { result: AuthorizeResult.ALLOW };
       }
 
-      // Nega todas as outras ações para guests
+      // Deny all other actions for guests
+      this.logger.debug(`❌ DENY: Guest user attempting non-read permission`, {
+        permission: request.permission.name,
+        userRefs: userEntityRefs,
+      });
       return { result: AuthorizeResult.DENY };
     }
+    // Logging for authenticated users
+    this.logger.debug('Authenticated user permission check', {
+      permission: request.permission.name,
+      userRefs: userEntityRefs,
+    });
 
-    // Para usuários autenticados (não-guests):
-
-    // Verificar se é uma permissão relacionada a recursos do catálogo
+    // For authenticated users (non-guests):
+    // Check if it's a catalog resource-related permission
     if (isResourcePermission(request.permission, 'catalog-entity')) {
-      // Para operações no catálogo, usar decisão condicional baseada em ownership
-      // Isso permite que apenas o owner do recurso possa executar a ação
+      // For READ operations, allow all authenticated users
+      if (request.permission.name.includes('.read')) {
+        this.logger.debug(`✅ ALLOW: Authenticated user reading catalog entity`, {
+          permission: request.permission.name,
+          userRefs: userEntityRefs,
+        });
+        return { result: AuthorizeResult.ALLOW };
+      }
+
+      // For WRITE/DELETE operations, use conditional decision based on ownership
+      // This allows only the resource owner to execute the action
       return createCatalogConditionalDecision(
         request.permission,
         catalogConditions.isEntityOwner({
@@ -79,8 +144,12 @@ class CustomPermissionPolicy implements PermissionPolicy {
       );
     }
 
-    // Para permissões de criação no catálogo (não têm resource type)
-    // Permitir para usuários autenticados (não-guests)
+    // For catalog creation permissions (no resource type)
+    // Allow for authenticated users (non-guests)
+    this.logger.debug(`✅ ALLOW: Authenticated user accessing catalog create permission`, {
+      permission: request.permission.name,
+      userRefs: userEntityRefs,
+    });
     if (
       request.permission.name === 'catalog.entity.create' ||
       request.permission.name === 'catalog.location.create'
@@ -88,12 +157,12 @@ class CustomPermissionPolicy implements PermissionPolicy {
       return { result: AuthorizeResult.ALLOW };
     }
 
-    // Permissões do Scaffolder - permitir para usuários autenticados
+    // Scaffolder permissions - allow for authenticated users
     if (request.permission.name.startsWith('scaffolder.')) {
       return { result: AuthorizeResult.ALLOW };
     }
 
-    // Padrão: permitir para usuários autenticados
+    // Default: allow for authenticated users
     return { result: AuthorizeResult.ALLOW };
   }
 }
@@ -103,9 +172,14 @@ export default createBackendModule({
   moduleId: 'permission-policy',
   register(reg) {
     reg.registerInit({
-      deps: { policy: policyExtensionPoint },
-      async init({ policy }) {
-        policy.setPolicy(new CustomPermissionPolicy());
+      deps: { 
+        policy: policyExtensionPoint,
+        log: coreServices.logger,
+      },
+      async init({ policy, log }) {
+        log.info('Setting up CustomPermissionPolicy for Backstage Permission System');
+        policy.setPolicy(new CustomPermissionPolicy(log));
+        log.info('CustomPermissionPolicy has been set successfully');
       },
     });
   },
