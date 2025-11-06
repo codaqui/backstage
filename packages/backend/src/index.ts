@@ -41,10 +41,14 @@ backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
 
 // permission plugin
 backend.add(import('@backstage/plugin-permission-backend'));
+
+// Improve Permission System - https://backstage.io/docs/permissions/getting-started
+backend.add(import('./extensions/permissionsPolicyExtension'));
+
 // See https://backstage.io/docs/permissions/getting-started for how to create your own permission policy
-backend.add(
-  import('@backstage/plugin-permission-backend-module-allow-all-policy'),
-);
+// backend.add(
+//   import('@backstage/plugin-permission-backend-module-allow-all-policy'),
+// );
 
 // search plugin
 backend.add(import('@backstage/plugin-search-backend'));
@@ -63,7 +67,6 @@ backend.add(import('@backstage/plugin-kubernetes-backend'));
 // notifications and signals plugins
 backend.add(import('@backstage/plugin-notifications-backend'));
 backend.add(import('@backstage/plugin-signals-backend'));
-
 
 // Let's go! Start!
 backend.start();
