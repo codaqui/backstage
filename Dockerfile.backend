@@ -105,6 +105,9 @@ RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 # Copy configuration files
 COPY --chown=node:node app-config*.yaml ./
 
+# Copy guest user/group definitions (folder: default)
+COPY --chown=node:node default ./default
+
 EXPOSE 7007
 
 CMD ["sh", "-c", "node packages/backend --config app-config.yaml --config ${CONFIG_FILE}"]
