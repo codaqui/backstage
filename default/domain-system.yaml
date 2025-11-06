@@ -1,7 +1,7 @@
 apiVersion: backstage.io/v1alpha1
 kind: Domain
 metadata:
-  name: organizacional
+  name: codaqui
   description: Domínio organizacional da Codaqui
 spec:
   owner: conselho
@@ -13,4 +13,4 @@ metadata:
   description: Sistema para gerenciar os artefatos da Diretoria Institucional
 spec:
   owner: conselho
-  domain: organizacional
+  domain: codaqui
