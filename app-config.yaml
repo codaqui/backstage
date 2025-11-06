@@ -87,6 +87,12 @@ catalog:
       rules:
         - allow: [User, Group]
 
+    # Fixed domain/system definitions
+    - type: file
+      target: ./default/domain-system.yaml
+      rules:
+        - allow: [Domain, System]
+
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
