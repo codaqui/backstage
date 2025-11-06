@@ -13,7 +13,11 @@ auth:
   environment: development
   providers:
     # See https://backstage.io/docs/auth/guest/provider
-    guest: {}
+    guest:
+      userEntityRef: user:guest
+      ownershipEntityRefs:
+        - group:guests
+      dangerouslyAllowOutsideDevelopment: true
     github:
       development:
         clientId: ${GITHUB_CLIENT_ID}
@@ -34,6 +38,12 @@ integrations:
           webhookSecret: ${GITHUB_ORG_WEBHOOK_SECRET}
           privateKey: ${GITHUB_ORG_PRIVATE_KEY}
 catalog:
+  rules:
+    - allow: [Component, System, API, Resource, Location, User, Group]
+  locations:
+    # Fixed guest/guests user/group definitions
+    - type: file
+      target: ./default/guest.yaml
   providers:
     github: # GitHub Source for components
       codaquiPortal:
@@ -54,4 +64,3 @@ catalog:
           initialDelay: { seconds: 30 }
           frequency: { hours: 30 }
           timeout: { minutes: 3 }
-    
