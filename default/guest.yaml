@@ -1,0 +1,23 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: guests
+  description: Guest users group with limited access
+spec:
+  type: team
+  profile:
+    displayName: Guests
+    email: noreply@codaqui.dev
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: guest
+  description: Default guest user account with limited access
+spec:
+  profile:
+    displayName: Guest User
+    email: noreply@codaqui.dev
+  memberOf: [guests]
