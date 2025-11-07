@@ -1,0 +1,136 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: social-resources
+  description: Sistema para gerenciar recursos sociais e de comunicação da Codaqui
+spec:
+  owner: conselho
+  domain: codaqui
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: discord-codaqui
+  description: Servidor Discord da Codaqui para comunicação em tempo real
+  annotations:
+    discord/url: https://discord.com/invite/xuTtxqCPpz
+  tags:
+    - comunicacao
+    - discord
+    - chat
+  links:
+    - url: https://discord.com/invite/xuTtxqCPpz
+      title: Entrar no Discord
+      icon: chat
+spec:
+  type: discord
+  lifecycle: production
+  owner: conselho
+  system: social-resources
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: youtube-codaqui
+  description: Canal do YouTube da Codaqui com tutoriais e conteúdo educacional
+  annotations:
+    youtube/channel: https://youtube.com/@codaqui
+  tags:
+    - conteudo
+    - youtube
+    - video
+    - educacao
+  links:
+    - url: https://youtube.com/@codaqui
+      title: Acessar Canal
+      icon: play
+spec:
+  type: youtube
+  lifecycle: production
+  owner: conselho
+  system: social-resources
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: github-codaqui
+  description: Organização GitHub da Codaqui com projetos open source
+  annotations:
+    github.com/project-slug: codaqui
+  tags:
+    - codigo
+    - github
+    - opensource
+  links:
+    - url: https://github.com/codaqui
+      title: Ver Organização
+      icon: github
+spec:
+  type: github
+  lifecycle: production
+  owner: conselho
+  system: social-resources
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: linkedin-codaqui
+  description: Página do LinkedIn da Codaqui
+  annotations:
+    linkedin/company: codaqui
+  tags:
+    - comunicacao
+    - linkedin
+    - rede-social
+  links:
+    - url: https://www.linkedin.com/company/codaqui
+      title: Seguir no LinkedIn
+      icon: linkedin
+spec:
+  type: linkedin
+  lifecycle: production
+  owner: conselho
+  system: social-resources
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: instagram-codaqui
+  description: Perfil do Instagram da Codaqui
+  annotations:
+    instagram/profile: codaqui.dev
+  tags:
+    - comunicacao
+    - instagram
+    - rede-social
+  links:
+    - url: https://instagram.com/codaqui.dev
+      title: Seguir no Instagram
+      icon: user
+spec:
+  type: instagram
+  lifecycle: production
+  owner: conselho
+  system: social-resources
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: twitter-codaqui
+  description: Perfil do Twitter/X da Codaqui
+  annotations:
+    twitter/handle: codaquidev
+  tags:
+    - comunicacao
+    - twitter
+    - rede-social
+  links:
+    - url: https://twitter.com/codaquidev
+      title: Seguir no Twitter
+      icon: user
+spec:
+  type: twitter
+  lifecycle: production
+  owner: conselho
+  system: social-resources
+---

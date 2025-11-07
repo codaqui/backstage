@@ -1,0 +1,55 @@
+# --- Codaqui
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: codaqui
+  description: Domínio organizacional da Codaqui
+spec:
+  owner: conselho
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: diretoria-institucional
+  description: Sistema para gerenciar os artefatos da Diretoria Institucional
+spec:
+  owner: conselho
+  domain: codaqui
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: comunidades
+  description: Dominio organizacional para as comunidades apoiadas pela Codaqui.
+spec:
+  owner: conselho
+---
+# --- DevParaná
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: devparana
+  description: Sistema para gerenciar os artefatos da comunidade DevParaná.
+spec:
+  owner: conselho
+  domain: comunidades
+---
+# --- CamposTech
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: campostech
+  description: Sistema para gerenciar os artefatos da comunidade CamposTech.
+spec:
+  owner: conselho
+  domain: comunidades
+---
+# --- Elas no Código
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: elas-no-codigo
+  description: Sistema para gerenciar os artefatos da comunidade Elas no Código.
+spec:
+  owner: conselho
+  domain: comunidades

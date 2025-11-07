@@ -1,0 +1,74 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: whatsapp-groups
+  description: Sistema para gerenciar os grupos de WhatsApp da Codaqui
+spec:
+  owner: conselho
+  domain: codaqui
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: whatsapp-group-general
+  description: Grupo de WhatsApp para discussões gerais sobre o Codaqui
+  annotations:
+    human-name: Grupo Geral da Codaqui
+    whatsapp-url: https://chat.whatsapp.com/IvzONDeglw55ySBD71F4Up
+  tags:
+    - comunicacao
+    - geral
+  links:
+    - url: https://chat.whatsapp.com/IvzONDeglw55ySBD71F4Up
+      title: Entrar no Grupo
+      icon: chat
+spec:
+  type: whatsapp
+  lifecycle: production
+  owner: conselho
+  system: whatsapp-groups
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: whatsapp-group-devparana
+  description: Grupo de WhatsApp da comunidade DevParaná
+  annotations:
+    human-name: DevParaná
+    whatsapp-url: https://devpr.org/whatsapp
+  tags:
+    - comunicacao
+    - devparana
+    - parana
+  links:
+    - url: https://devpr.org/whatsapp
+      title: Entrar no Grupo
+      icon: chat
+spec:
+  type: whatsapp
+  lifecycle: production
+  owner: conselho
+  system: whatsapp-groups
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: whatsapp-group-campostech
+  description: Grupo de WhatsApp da comunidade CamposTech
+  annotations:
+    human-name: CamposTech
+    whatsapp-url: https://chat.whatsapp.com/KCUzy7gV4YiHnEKCCAp0ha
+  tags:
+    - comunicacao
+    - campostech
+    - campos
+  links:
+    - url: https://chat.whatsapp.com/KCUzy7gV4YiHnEKCCAp0ha
+      title: Entrar no Grupo
+      icon: chat
+spec:
+  type: whatsapp
+  lifecycle: production
+  owner: conselho
+  system: whatsapp-groups
+---
