@@ -1,0 +1,52 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: favorite-animal-template
+  title: Favorite Animal Project
+  description: Template que exibe o animal favorito do usuário
+  tags:
+    - demo
+spec:
+  owner: group:guests
+  type: demo-service
+  parameters:
+    - title: Animal Favorito
+      required:
+        - favoriteAnimal
+      properties:
+        favoriteAnimal:
+          title: Qual é o seu animal favorito?
+          type: string
+          description: Selecione um animal da lista
+          enum:
+            - cachorro
+            - gato
+            - passaro
+            - peixe
+            - coelho
+            - hamster
+            - tartaruga
+            - cavalo
+            - leao
+            - elefante
+          enumNames:
+            - 🐕 Cachorro
+            - 🐈 Gato
+            - 🐦 Pássaro
+            - 🐠 Peixe
+            - 🐰 Coelho
+            - 🐹 Hamster
+            - 🐢 Tartaruga
+            - 🐴 Cavalo
+            - 🦁 Leão
+            - 🐘 Elefante
+  steps:
+    - id: log
+      name: Log do Animal Favorito
+      action: debug:log
+      input:
+        message: 'Olá ${{ user.entity.spec.profile.displayName or user.ref }}! Seu animal favorito é ${{ parameters.favoriteAnimal }}'
+  output:
+    text:
+      - title: Resultado
+        content: 'Olá ${{ user.entity.spec.profile.displayName or user.ref }}! Seu animal favorito é ${{ parameters.favoriteAnimal }}'

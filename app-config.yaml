@@ -93,6 +93,12 @@ catalog:
       rules:
         - allow: [Domain, System]
 
+    # Software Templates
+    - type: file
+      target: ./default/templates/*/template.yaml
+      rules:
+        - allow: [Template]
+
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
