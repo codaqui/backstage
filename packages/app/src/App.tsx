@@ -1,4 +1,4 @@
-import { Navigate, Route } from 'react-router-dom';
+import { Route } from 'react-router-dom';
 import { apiDocsPlugin, ApiExplorerPage } from '@backstage/plugin-api-docs';
 import {
   CatalogEntityPage,
@@ -24,6 +24,10 @@ import { apis } from './apis';
 import { entityPage } from './components/catalog/EntityPage';
 import { searchPage } from './components/search/SearchPage';
 import { Root } from './components/Root';
+import { HomePage } from './components/home';
+import { WhatsAppGroupsPage, LearningResourcesPage, SocialResourcesPage } from './pages';
+import { codaquiLightTheme, codaquiDarkTheme } from './theme/codaquiTheme';
+import { UnifiedThemeProvider } from '@backstage/theme';
 
 import {
   AlertDisplay,
@@ -41,6 +45,28 @@ import { githubAuthApiRef } from '@backstage/core-plugin-api';
 
 const app = createApp({
   apis,
+  themes: [
+    {
+      id: 'codaqui-light',
+      title: 'Codaqui Light',
+      variant: 'light',
+      Provider: ({ children }) => (
+        <UnifiedThemeProvider theme={codaquiLightTheme}>
+          {children}
+        </UnifiedThemeProvider>
+      ),
+    },
+    {
+      id: 'codaqui-dark',
+      title: 'Codaqui Dark',
+      variant: 'dark',
+      Provider: ({ children }) => (
+        <UnifiedThemeProvider theme={codaquiDarkTheme}>
+          {children}
+        </UnifiedThemeProvider>
+      ),
+    },
+  ],
   components: {
     SignInPage: props => (
       <SignInPage
@@ -81,7 +107,10 @@ const app = createApp({
 
 const routes = (
   <FlatRoutes>
-    <Route path="/" element={<Navigate to="catalog" />} />
+    <Route path="/" element={<HomePage />} />
+    <Route path="/whatsapp-groups" element={<WhatsAppGroupsPage />} />
+    <Route path="/learning-resources" element={<LearningResourcesPage />} />
+    <Route path="/social-resources" element={<SocialResourcesPage />} />
     <Route path="/catalog" element={<CatalogIndexPage />} />
     <Route
       path="/catalog/:namespace/:kind/:name"

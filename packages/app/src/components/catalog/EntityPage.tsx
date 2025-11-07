@@ -79,16 +79,16 @@ const cicdContent = (
      */}
     <EntitySwitch.Case>
       <EmptyState
-        title="No CI/CD available for this entity"
+        title="Nenhum CI/CD disponível para esta entidade"
         missing="info"
-        description="You need to add an annotation to your component if you want to enable CI/CD for it. You can read more about annotations in Backstage by clicking the button below."
+        description="Você precisa adicionar uma anotação ao seu componente se quiser habilitar CI/CD para ele. Você pode ler mais sobre anotações no Backstage clicando no botão abaixo."
         action={
           <Button
             variant="contained"
             color="primary"
             href="https://backstage.io/docs/features/software-catalog/well-known-annotations"
           >
-            Read more
+            Saiba mais
           </Button>
         }
       />
@@ -145,7 +145,7 @@ const overviewContent = (
 
 const serviceEntityPage = (
   <EntityLayout>
-    <EntityLayout.Route path="/" title="Overview">
+    <EntityLayout.Route path="/" title="Visão Geral">
       {overviewContent}
     </EntityLayout.Route>
 
@@ -172,7 +172,7 @@ const serviceEntityPage = (
       </Grid>
     </EntityLayout.Route>
 
-    <EntityLayout.Route path="/dependencies" title="Dependencies">
+    <EntityLayout.Route path="/dependencies" title="Dependências">
       <Grid container spacing={3} alignItems="stretch">
         <Grid item md={6}>
           <EntityDependsOnComponentsCard variant="gridItem" />
@@ -183,7 +183,7 @@ const serviceEntityPage = (
       </Grid>
     </EntityLayout.Route>
 
-    <EntityLayout.Route path="/docs" title="Docs">
+    <EntityLayout.Route path="/docs" title="Documentação">
       {techdocsContent}
     </EntityLayout.Route>
   </EntityLayout>
@@ -191,7 +191,7 @@ const serviceEntityPage = (
 
 const websiteEntityPage = (
   <EntityLayout>
-    <EntityLayout.Route path="/" title="Overview">
+    <EntityLayout.Route path="/" title="Visão Geral">
       {overviewContent}
     </EntityLayout.Route>
 
@@ -207,7 +207,7 @@ const websiteEntityPage = (
       <EntityKubernetesContent />
     </EntityLayout.Route>
 
-    <EntityLayout.Route path="/dependencies" title="Dependencies">
+    <EntityLayout.Route path="/dependencies" title="Dependências">
       <Grid container spacing={3} alignItems="stretch">
         <Grid item md={6}>
           <EntityDependsOnComponentsCard variant="gridItem" />
@@ -218,7 +218,7 @@ const websiteEntityPage = (
       </Grid>
     </EntityLayout.Route>
 
-    <EntityLayout.Route path="/docs" title="Docs">
+    <EntityLayout.Route path="/docs" title="Documentação">
       {techdocsContent}
     </EntityLayout.Route>
   </EntityLayout>
@@ -233,11 +233,11 @@ const websiteEntityPage = (
 
 const defaultEntityPage = (
   <EntityLayout>
-    <EntityLayout.Route path="/" title="Overview">
+    <EntityLayout.Route path="/" title="Visão Geral">
       {overviewContent}
     </EntityLayout.Route>
 
-    <EntityLayout.Route path="/docs" title="Docs">
+    <EntityLayout.Route path="/docs" title="Documentação">
       {techdocsContent}
     </EntityLayout.Route>
   </EntityLayout>
@@ -259,7 +259,7 @@ const componentPage = (
 
 const apiPage = (
   <EntityLayout>
-    <EntityLayout.Route path="/" title="Overview">
+    <EntityLayout.Route path="/" title="Visão Geral">
       <Grid container spacing={3}>
         {entityWarningContent}
         <Grid item md={6}>
@@ -282,7 +282,7 @@ const apiPage = (
       </Grid>
     </EntityLayout.Route>
 
-    <EntityLayout.Route path="/definition" title="Definition">
+    <EntityLayout.Route path="/definition" title="Definição">
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <EntityApiDefinitionCard />
@@ -294,7 +294,7 @@ const apiPage = (
 
 const userPage = (
   <EntityLayout>
-    <EntityLayout.Route path="/" title="Overview">
+    <EntityLayout.Route path="/" title="Visão Geral">
       <Grid container spacing={3}>
         {entityWarningContent}
         <Grid item xs={12} md={6}>
@@ -310,7 +310,7 @@ const userPage = (
 
 const groupPage = (
   <EntityLayout>
-    <EntityLayout.Route path="/" title="Overview">
+    <EntityLayout.Route path="/" title="Visão Geral">
       <Grid container spacing={3}>
         {entityWarningContent}
         <Grid item xs={12} md={6}>
@@ -332,7 +332,7 @@ const groupPage = (
 
 const systemPage = (
   <EntityLayout>
-    <EntityLayout.Route path="/" title="Overview">
+    <EntityLayout.Route path="/" title="Visão Geral">
       <Grid container spacing={3} alignItems="stretch">
         {entityWarningContent}
         <Grid item md={6}>
@@ -355,11 +355,11 @@ const systemPage = (
         </Grid>
       </Grid>
     </EntityLayout.Route>
-    <EntityLayout.Route path="/diagram" title="Diagram">
+    <EntityLayout.Route path="/diagram" title="Diagrama">
       <EntityCatalogGraphCard
         variant="gridItem"
         direction={Direction.TOP_BOTTOM}
-        title="System Diagram"
+        title="Diagrama do Sistema"
         height={700}
         relations={[
           RELATION_PART_OF,
@@ -379,7 +379,7 @@ const systemPage = (
 
 const domainPage = (
   <EntityLayout>
-    <EntityLayout.Route path="/" title="Overview">
+    <EntityLayout.Route path="/" title="Visão Geral">
       <Grid container spacing={3} alignItems="stretch">
         {entityWarningContent}
         <Grid item md={6}>
