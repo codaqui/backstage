@@ -1,17 +1,3 @@
-
-apiVersion: backstage.io/v1alpha1
-kind: Location
-metadata:
-  name: codaqui-resources
-  description: Recursos e componentes da Codaqui
-spec:
-  targets:
-    - ./default/domain-system.yaml
-    - ./default/guest.yaml
-    - ./default/whatsapp-groups.yaml
-    - ./default/social-resources.yaml
-    - ./default/learning-resources.yaml
----
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:

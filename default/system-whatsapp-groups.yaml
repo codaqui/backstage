@@ -14,7 +14,6 @@ metadata:
   description: Grupo de WhatsApp para discussões gerais sobre o Codaqui
   annotations:
     human-name: Grupo Geral da Codaqui
-    whatsapp-url: https://chat.whatsapp.com/IvzONDeglw55ySBD71F4Up
   tags:
     - comunicacao
     - geral
@@ -35,7 +34,6 @@ metadata:
   description: Grupo de WhatsApp da comunidade DevParaná
   annotations:
     human-name: DevParaná
-    whatsapp-url: https://devpr.org/whatsapp
   tags:
     - comunicacao
     - devparana
@@ -57,7 +55,6 @@ metadata:
   description: Grupo de WhatsApp da comunidade CamposTech
   annotations:
     human-name: CamposTech
-    whatsapp-url: https://chat.whatsapp.com/KCUzy7gV4YiHnEKCCAp0ha
   tags:
     - comunicacao
     - campostech

@@ -11,10 +11,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: trilha-python
-  description: Trilha de aprendizado de Python (16 aulas)
+  description: Trilha de aprendizado de Python com 16 aulas completas, desde o básico até conceitos avançados
   annotations:
-    learning/url: https://codaqui.dev/trilhas/python
-    learning/duration: 16 aulas
+    human-name: Trilha de Python
   tags:
     - educacao
     - python
@@ -34,10 +33,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: trilha-github
-  description: Trilha de aprendizado de GitHub (8 aulas)
+  description: Trilha de aprendizado de GitHub com 8 aulas sobre versionamento, colaboração e boas práticas
   annotations:
-    learning/url: https://codaqui.dev/trilhas/github
-    learning/duration: 8 aulas
+    human-name: Trilha de GitHub
   tags:
     - educacao
     - github
@@ -49,49 +47,6 @@ metadata:
       icon: docs
 spec:
   type: learning-path
-  lifecycle: production
-  owner: conselho
-  system: learning-resources
----
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: blog-codaqui
-  description: Blog institucional da Codaqui com tutoriais e artigos
-  annotations:
-    blog/url: https://codaqui.dev/blog
-  tags:
-    - conteudo
-    - blog
-    - educacao
-    - artigos
-  links:
-    - url: https://codaqui.dev/blog
-      title: Acessar Blog
-      icon: docs
-spec:
-  type: blog
-  lifecycle: production
-  owner: conselho
-  system: learning-resources
----
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: site-institucional
-  description: Site institucional da Codaqui
-  annotations:
-    website/url: https://codaqui.dev
-  tags:
-    - website
-    - institucional
-    - documentacao
-  links:
-    - url: https://codaqui.dev
-      title: Acessar Site
-      icon: website
-spec:
-  type: website
   lifecycle: production
   owner: conselho
   system: learning-resources

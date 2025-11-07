@@ -11,9 +11,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: discord-codaqui
-  description: Servidor Discord da Codaqui para comunicação em tempo real
+  description: Servidor Discord da Codaqui para comunicação em tempo real, eventos, lives e discussões técnicas
   annotations:
-    discord/url: https://discord.com/invite/xuTtxqCPpz
+    human-name: Discord da Codaqui
   tags:
     - comunicacao
     - discord
@@ -23,7 +23,7 @@ metadata:
       title: Entrar no Discord
       icon: chat
 spec:
-  type: discord
+  type: social-network
   lifecycle: production
   owner: conselho
   system: social-resources
@@ -32,9 +32,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: youtube-codaqui
-  description: Canal do YouTube da Codaqui com tutoriais e conteúdo educacional
+  description: Canal do YouTube da Codaqui com tutoriais, aulas gravadas, palestras e conteúdo educacional
   annotations:
-    youtube/channel: https://youtube.com/@codaqui
+    human-name: Canal do YouTube
   tags:
     - conteudo
     - youtube
@@ -45,7 +45,7 @@ metadata:
       title: Acessar Canal
       icon: play
 spec:
-  type: youtube
+  type: social-network
   lifecycle: production
   owner: conselho
   system: social-resources
@@ -54,9 +54,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: github-codaqui
-  description: Organização GitHub da Codaqui com projetos open source
+  description: Organização GitHub da Codaqui com projetos open source, contribuições da comunidade e código dos cursos
   annotations:
-    github.com/project-slug: codaqui
+    human-name: GitHub da Codaqui
   tags:
     - codigo
     - github
@@ -66,7 +66,7 @@ metadata:
       title: Ver Organização
       icon: github
 spec:
-  type: github
+  type: social-network
   lifecycle: production
   owner: conselho
   system: social-resources
@@ -75,9 +75,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: linkedin-codaqui
-  description: Página do LinkedIn da Codaqui
+  description: Página do LinkedIn da Codaqui com novidades profissionais, vagas e networking
   annotations:
-    linkedin/company: codaqui
+    human-name: LinkedIn da Codaqui
   tags:
     - comunicacao
     - linkedin
@@ -87,7 +87,7 @@ metadata:
       title: Seguir no LinkedIn
       icon: linkedin
 spec:
-  type: linkedin
+  type: social-network
   lifecycle: production
   owner: conselho
   system: social-resources
@@ -96,9 +96,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: instagram-codaqui
-  description: Perfil do Instagram da Codaqui
+  description: Perfil do Instagram da Codaqui com fotos, stories e conteúdo visual da comunidade
   annotations:
-    instagram/profile: codaqui.dev
+    human-name: Instagram da Codaqui
   tags:
     - comunicacao
     - instagram
@@ -108,7 +108,7 @@ metadata:
       title: Seguir no Instagram
       icon: user
 spec:
-  type: instagram
+  type: social-network
   lifecycle: production
   owner: conselho
   system: social-resources
@@ -117,9 +117,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: twitter-codaqui
-  description: Perfil do Twitter/X da Codaqui
+  description: Perfil do Twitter/X da Codaqui com updates rápidos, anúncios e interação com a comunidade tech
   annotations:
-    twitter/handle: codaquidev
+    human-name: Twitter da Codaqui
   tags:
     - comunicacao
     - twitter
@@ -129,7 +129,7 @@ metadata:
       title: Seguir no Twitter
       icon: user
 spec:
-  type: twitter
+  type: social-network
   lifecycle: production
   owner: conselho
   system: social-resources
