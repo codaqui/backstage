@@ -1,11 +1,24 @@
 
 apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: codaqui-resources
+  description: Recursos e componentes da Codaqui
+spec:
+  targets:
+    - ./default/domain-system.yaml
+    - ./default/guest.yaml
+    - ./default/whatsapp-groups.yaml
+    - ./default/social-resources.yaml
+    - ./default/learning-resources.yaml
+---
+apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: codaqui-backstage
-  description: An example of a Backstage application.
+  description: Portal Backstage da Codaqui - Central de recursos e comunicação da comunidade
   links:
-    - url: https://github.com/codaqui/codaqui-backstage
+    - url: https://github.com/codaqui/backstage
       title: Codaqui Backstage GitHub Repository
       icon: github
       type: source
@@ -13,12 +26,12 @@ metadata:
       title: Codaqui Backstage Portal
       icon: website
       type: website
-    - url: https://backstage.io
-      title: Backstage Official Website
+    - url: https://codaqui.dev
+      title: Site Institucional Codaqui
       icon: website
       type: website
 spec:
   type: website
   owner: conselho
-  lifecycle: experimental
+  lifecycle: production
   system: diretoria-institucional

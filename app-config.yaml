@@ -1,5 +1,5 @@
 app:
-  title: 'Codaqui Portal'
+  title: 'Portal Codaqui'
   baseUrl: http://localhost:3000
 
 organization:
@@ -81,17 +81,12 @@ catalog:
   rules:
     - allow: [Component, System, API, Resource, Location]
   locations:
-    # Fixed guest/guests user/group definitions
+  
+    # Fixed General Locations
     - type: file
-      target: ./default/guest.yaml
+      target: ./default/*.yaml
       rules:
-        - allow: [User, Group]
-
-    # Fixed domain/system definitions
-    - type: file
-      target: ./default/domain-system.yaml
-      rules:
-        - allow: [Domain, System]
+        - allow: [User, Group, Component, System, Domain]
 
     # Software Templates
     - type: file
