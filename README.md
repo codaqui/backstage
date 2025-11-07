@@ -63,12 +63,23 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome! **Before contributing, please read [`AGENTS.md`](./AGENTS.md)** for detailed technical guidelines, architecture patterns, and best practices.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+**For human and AI contributors:**
+1. Read [`AGENTS.md`](./AGENTS.md) completely
+2. Fork the repository
+3. Create a feature branch following naming conventions
+4. Make your changes following established patterns
+5. Test locally
+6. Submit a pull request
+
+The `AGENTS.md` file contains:
+- Project architecture and structure
+- Code standards and patterns
+- TypeScript conventions
+- Component/hook/page patterns
+- Theme and branding guidelines
+- Common pitfalls to avoid
 
 ## 📄 License
 
