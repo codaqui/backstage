@@ -63,28 +63,30 @@ const SidebarLogo = () => {
 
 const useSidebarFooterStyles = makeStyles(theme => ({
   footer: {
-    padding: theme.spacing(2),
+    width: '100%',
+    padding: theme.spacing(1.5, 1),
     textAlign: 'center',
     borderTop: `1px solid ${theme.palette.divider}`,
-    backgroundColor: theme.palette.background.paper,
+    backgroundColor: theme.palette.background.default,
+    margin: 0,
   },
   madeWith: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: theme.spacing(0.5),
-    marginBottom: theme.spacing(0.5),
     fontSize: '0.75rem',
     color: theme.palette.text.secondary,
+    marginBottom: theme.spacing(1),
   },
   heart: {
     color: '#e25555',
     fontSize: '0.875rem',
   },
-  cnpj: {
+  organization: {
     fontSize: '0.7rem',
     color: theme.palette.text.secondary,
-    marginTop: theme.spacing(0.5),
+    lineHeight: 1.3,
   },
 }));
 
@@ -96,13 +98,13 @@ const SidebarFooter = () => {
 
   return (
     <Box className={classes.footer}>
-      <Typography variant="caption" className={classes.madeWith} display="block">
+      <Typography variant="caption" className={classes.madeWith}>
         Feito com <FavoriteIcon className={classes.heart} /> Backstage
       </Typography>
-      <Typography variant="caption" className={classes.cnpj} display="block">
+      <Typography variant="caption" className={classes.organization} display="block">
         Associação Codaqui
       </Typography>
-      <Typography variant="caption" className={classes.cnpj} display="block">
+      <Typography variant="caption" className={classes.organization} display="block">
         CNPJ 44.593.429/0001-05
       </Typography>
     </Box>
@@ -147,7 +149,6 @@ export const Root = ({ children }: PropsWithChildren<{}>) => (
       <SidebarGroup
         label="Configurações"
         icon={<UserSettingsSignInAvatar />}
-        to="/settings"
       >
         <SidebarSettings />
       </SidebarGroup>
