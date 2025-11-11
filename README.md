@@ -83,7 +83,7 @@ The `AGENTS.md` file contains:
 
 ## 📄 License
 
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+This project is licensed under the Apache License 2.0 - see the original [LICENSE file](https://github.com/backstage/backstage?tab=Apache-2.0-1-ov-file#readme) for details.
 
 ## 🆘 Support
 
