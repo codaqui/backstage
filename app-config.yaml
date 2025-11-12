@@ -94,6 +94,12 @@ catalog:
       rules:
         - allow: [Template]
 
+    # Kubernetes Sample
+    - type: file
+      target: ./default/k8s-sample/catalog-info.yaml
+      rules:
+        - allow: [Component]
+
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options

@@ -64,3 +64,17 @@ catalog:
           initialDelay: { seconds: 30 }
           frequency: { hours: 30 }
           timeout: { minutes: 3 }
+kubernetes:
+  frontend:
+    podDelete:
+      enabled: true
+  serviceLocatorMethod:
+    type: 'multiTenant'
+  clusterLocatorMethods:
+    - type: 'config'
+      clusters:
+        - url: http://kubectl-proxy:8001
+          name: podman-desktop-cluster
+          authProvider: 'localKubectlProxy'
+          skipTLSVerify: true
+          skipMetricsLookup: true
