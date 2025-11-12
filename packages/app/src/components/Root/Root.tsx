@@ -8,6 +8,7 @@ import WhatsAppIcon from '@material-ui/icons/WhatsApp';
 import SchoolIcon from '@material-ui/icons/School';
 import PeopleIcon from '@material-ui/icons/People';
 import FavoriteIcon from '@material-ui/icons/Favorite';
+import CloudQueueIcon from '@material-ui/icons/CloudQueue';
 import LogoFull from './LogoFull';
 import LogoIcon from './LogoIcon';
 import {
@@ -127,6 +128,7 @@ export const Root = ({ children }: PropsWithChildren<{}>) => (
         <SidebarItem icon={WhatsAppIcon} to="whatsapp-groups" text="WhatsApp" />
         <SidebarItem icon={SchoolIcon} to="learning-resources" text="Aprendizado" />
         <SidebarItem icon={PeopleIcon} to="social-resources" text="Redes Sociais" />
+        <SidebarItem icon={CloudQueueIcon} to="kubernetes-resources" text="Kubernetes" />
         <SidebarDivider />
         <MyGroupsSidebarItem
           singularTitle="Meu Grupo"
