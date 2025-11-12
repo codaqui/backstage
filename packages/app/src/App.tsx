@@ -25,7 +25,7 @@ import { entityPage } from './components/catalog/EntityPage';
 import { searchPage } from './components/search/SearchPage';
 import { Root } from './components/Root';
 import { HomePage } from './components/home';
-import { WhatsAppGroupsPage, LearningResourcesPage, SocialResourcesPage } from './pages';
+import { WhatsAppGroupsPage, LearningResourcesPage, SocialResourcesPage, KubernetesResourcesPage } from './pages';
 import { codaquiLightTheme, codaquiDarkTheme } from './theme/codaquiTheme';
 import { UnifiedThemeProvider } from '@backstage/theme';
 
@@ -111,6 +111,7 @@ const routes = (
     <Route path="/whatsapp-groups" element={<WhatsAppGroupsPage />} />
     <Route path="/learning-resources" element={<LearningResourcesPage />} />
     <Route path="/social-resources" element={<SocialResourcesPage />} />
+    <Route path="/kubernetes-resources" element={<KubernetesResourcesPage />} />
     <Route path="/catalog" element={<CatalogIndexPage />} />
     <Route
       path="/catalog/:namespace/:kind/:name"
