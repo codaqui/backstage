@@ -10,6 +10,8 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 - Yarn (enabled via corepack)
 - Podman or Docker
 - GitHub Account
+- Kubernetes Local Cluster
+  - Apply the `default/k8s-sample/deployment.yaml` to create a local cluster for testing
 
 ### Initial Setup
 
