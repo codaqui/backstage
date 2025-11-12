@@ -1,4 +1,37 @@
 services:
+  # kubectl proxy to connect to local Kind cluster
+  kubectl-proxy:
+    image: alpine/k8s:1.31.13
+    container_name: kubectl-proxy
+    entrypoint: /bin/sh
+    command: 
+      - -c
+      - |
+        # Modify kubeconfig to skip TLS verification and use host.docker.internal
+        cat /kubeconfig-orig/config | \
+        sed 's/127\.0\.0\.1/host.docker.internal/g' | \
+        sed 's/certificate-authority-data:.*/insecure-skip-tls-verify: true/g' > /tmp/config
+        
+        echo "Testing connection to host Kubernetes cluster..."
+        until kubectl --kubeconfig=/tmp/config get nodes 2>/dev/null; do
+          echo "Waiting for host cluster to be accessible..."
+          sleep 5
+        done
+        echo "Host cluster ready! Nodes:"
+        kubectl --kubeconfig=/tmp/config get nodes
+        echo "Starting proxy on 0.0.0.0:8001..."
+        kubectl --kubeconfig=/tmp/config proxy --address=0.0.0.0 --port=8001 --accept-hosts='.*'
+    restart: unless-stopped
+    ports:
+      - '8001:8001'
+    volumes:
+      # Mount your local kubeconfig from host machine (Read-Only)
+      - ${HOME}/.kube/config:/kubeconfig-orig/config:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - backstage-network
+
   postgres:
     image: postgres:15-alpine
     restart: unless-stopped
@@ -43,6 +76,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kubectl-proxy:
+        condition: service_started
     healthcheck:
       test:
         [
