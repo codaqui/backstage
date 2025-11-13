@@ -21,7 +21,7 @@
 export function runPeriodically(
   fn: () => Promise<void>,
   intervalMs: number,
-): void {
+): () => void {
   let cancel = false;
 
   const runOnce = async () => {
@@ -38,4 +38,9 @@ export function runPeriodically(
 
   // Start immediately
   runOnce();
+  
+  // Return cleanup function
+  return () => {
+    cancel = true;
+  };
 }
