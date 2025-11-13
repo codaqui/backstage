@@ -1,0 +1,17 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: example-component
+  description: Example component to test Kubernetes integration
+  annotations:
+    backstage.io/kubernetes-id: example-component
+    backstage.io/kubernetes-namespace: backstage-test
+    backstage.io/kubernetes-label-selector: 'app=example-app'
+  tags:
+    - example
+    - kubernetes
+spec:
+  type: service
+  lifecycle: experimental
+  owner: guests

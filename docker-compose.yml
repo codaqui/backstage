@@ -1,5 +1,44 @@
 services:
+  # kubectl proxy to connect to local Kind cluster
+  # This service is OPTIONAL and only starts when profile 'kubernetes' is active
+  # Enable with: COMPOSE_PROFILES=kubernetes or CODAQUI_TESTING_WITH_KUBERNETES=true
+  # The backend service will automatically connect to it when both profiles are active
+  kubectl-proxy:
+    profiles: ['kubernetes']
+    image: alpine/k8s:1.31.13
+    container_name: codaqui-portal-kubectl-proxy
+    entrypoint: /bin/sh
+    command: 
+      - -c
+      - |
+        # Modify kubeconfig to skip TLS verification and use host.docker.internal
+        cat /kubeconfig-orig/config | \
+        sed 's/127\.0\.0\.1/host.docker.internal/g' | \
+        sed 's/certificate-authority-data:.*/insecure-skip-tls-verify: true/g' > /tmp/config
+        
+        echo "Testing connection to host Kubernetes cluster..."
+        until kubectl --kubeconfig=/tmp/config get nodes 2>/dev/null; do
+          echo "Waiting for host cluster to be accessible..."
+          sleep 5
+        done
+        echo "Host cluster ready! Nodes:"
+        kubectl --kubeconfig=/tmp/config get nodes
+        echo "Starting proxy on 0.0.0.0:8001..."
+        kubectl --kubeconfig=/tmp/config proxy --address=0.0.0.0 --port=8001 --accept-hosts='.*'
+    restart: unless-stopped
+    ports:
+      - '8001:8001'
+    volumes:
+      # Mount your local kubeconfig from host machine (Read-Only)
+      - ${HOME}/.kube/config:/kubeconfig-orig/config:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - backstage-network
+
   postgres:
+    profiles: ['standard']
+    container_name: codaqui-portal-postgres
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
@@ -24,6 +63,7 @@ services:
       - backstage-network
 
   backend:
+    profiles: ['standard']
     container_name: codaqui-portal-backend
     build:
       context: .
@@ -32,6 +72,7 @@ services:
         - NODE_ENV=${NODE_ENV}
         - NODE_OPTIONS=${NODE_OPTIONS}
         - CONFIG_FILE=${CONFIG_FILE}
+        - ENABLE_K8S=${CODAQUI_TESTING_WITH_KUBERNETES:-false}
     restart: unless-stopped
     env_file:
       - path: .env.example
@@ -62,6 +103,7 @@ services:
       - backstage-network
 
   frontend:
+    profiles: ['standard']
     container_name: codaqui-portal-frontend
     build:
       context: .
@@ -70,11 +112,12 @@ services:
         - NODE_ENV=${NODE_ENV}
         - NODE_OPTIONS=${NODE_OPTIONS}
         - CONFIG_FILE=${CONFIG_FILE}
+        - ENABLE_K8S=${CODAQUI_TESTING_WITH_KUBERNETES:-false}
     restart: unless-stopped
     env_file:
       - path: .env.example
         required: false
-      - path: .env.front
+      - path: .env.only-config
         required: false
     ports:
       - '3000:80'

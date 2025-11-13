@@ -6,6 +6,7 @@ FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS build
 ARG NODE_ENV
 ARG NODE_OPTIONS
 ARG CONFIG_FILE
+ARG ENABLE_K8S=false
 ENV NODE_ENV=${NODE_ENV:-development}
 ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
 ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
@@ -34,6 +35,9 @@ COPY .yarn ./.yarn
 # Enable corepack for yarn
 RUN corepack enable
 
+# Prepare yarn from the .yarn/releases directory
+RUN corepack prepare yarn@4.4.1 --activate
+
 # Copy workspace configuration
 COPY packages/app/package.json ./packages/app/package.json
 COPY packages/backend/package.json ./packages/backend/package.json
@@ -45,6 +49,14 @@ RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked \
 # Copy the rest of the application
 COPY . .
 
+# Handle K8s files conditionally based on ENABLE_K8S
+RUN if [ "${ENABLE_K8S}" != "true" ]; then \
+    echo "K8s mode disabled - removing K8s YAML resources"; \
+    rm -f default/k8s/*.yaml || true; \
+    else \
+    echo "K8s mode enabled - keeping K8s resources"; \
+    fi
+
 # Build the backend
 RUN yarn workspace backend build
 
@@ -55,6 +67,7 @@ FROM public.ecr.aws/docker/library/node:22-bookworm-slim
 ARG NODE_ENV
 ARG NODE_OPTIONS
 ARG CONFIG_FILE
+ARG ENABLE_K8S=false
 ENV NODE_ENV=${NODE_ENV:-development}
 ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
 ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
@@ -105,9 +118,10 @@ RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 # Copy configuration files
 COPY --chown=node:node app-config*.yaml ./
 
-# Copy guest user/group definitions (folder: default)
-COPY --chown=node:node default ./default
+# Copy default resources (all of them from build stage)
+COPY --from=build --chown=node:node /app/default ./default
 
 EXPOSE 7007
 
-CMD ["sh", "-c", "node packages/backend --config app-config.yaml --config ${CONFIG_FILE}"]
+# Updated CMD to support multiple config files (comma-separated)
+CMD ["bash", "-c", "IFS=',' read -ra CONFIGS <<< \"${CONFIG_FILE}\"; CONFIG_ARGS=''; for config in \"${CONFIGS[@]}\"; do CONFIG_ARGS=\"${CONFIG_ARGS} --config ${config}\"; done; node packages/backend --config app-config.yaml ${CONFIG_ARGS}"]

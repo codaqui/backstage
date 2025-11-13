@@ -6,6 +6,7 @@ FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS build
 ARG NODE_ENV
 ARG NODE_OPTIONS
 ARG CONFIG_FILE
+ARG ENABLE_K8S=false
 ENV NODE_ENV=${NODE_ENV:-development}
 ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
 ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
@@ -33,6 +34,9 @@ COPY .yarn ./.yarn
 # Enable corepack for yarn
 RUN corepack enable
 
+# Prepare yarn from the .yarn/releases directory
+RUN corepack prepare yarn@4.4.1 --activate
+
 # Copy workspace configuration
 COPY packages/app/package.json ./packages/app/package.json
 COPY packages/backend/package.json ./packages/backend/package.json
@@ -44,8 +48,21 @@ RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked \
 # Copy the rest of the application
 COPY . .
 
-# Build the frontend with production config
-RUN yarn workspace app build --config "../../app-config.yaml" --config "../../$CONFIG_FILE"
+# Handle K8s files conditionally based on ENABLE_K8S
+RUN if [ "${ENABLE_K8S}" != "true" ]; then \
+    echo "K8s mode disabled - removing K8s YAML resources"; \
+    rm -f default/k8s/*.yaml || true; \
+    else \
+    echo "K8s mode enabled - keeping K8s resources"; \
+    fi
+
+# Build the frontend with production config (support multiple config files)
+RUN bash -c 'IFS="," read -ra CONFIGS <<< "${CONFIG_FILE}"; \
+    CONFIG_ARGS=""; \
+    for config in "${CONFIGS[@]}"; do \
+        CONFIG_ARGS="${CONFIG_ARGS} --config ../../${config}"; \
+    done; \
+    yarn workspace app build --config ../../app-config.yaml ${CONFIG_ARGS}'
 
 # Stage 2: Serve with nginx
 FROM public.ecr.aws/nginx/nginx:mainline-alpine

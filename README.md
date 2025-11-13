@@ -10,6 +10,7 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 - Yarn (enabled via corepack)
 - Podman or Docker
 - GitHub Account
+- **Optional**: Local Kubernetes cluster for testing K8s features
 
 ### Initial Setup
 
@@ -38,21 +39,44 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 
    - **GitHub OAuth App**: Create at https://github.com/settings/applications/new
    - **GitHub App**: Create at https://github.com/organizations/codaqui/settings/apps/new
+   - **Kubernetes Testing** (Optional): Set `CODAQUI_TESTING_WITH_KUBERNETES=true`
    - See `.env.example` for detailed instructions
 
-4. **Run with Podman Compose**
+4. **Run the portal**
 
+   **Standard mode (without Kubernetes resources):**
    ```bash
+   COMPOSE_PROFILES=standard \
+   CODAQUI_TESTING_WITH_KUBERNETES=false \
+   CONFIG_FILE=app-config.docker.yaml \
    podman compose up --build --force-recreate
    ```
+
+   **Kubernetes testing mode (includes K8s resources):**
+   ```bash
+   # Verify ./default/k8s/deployment.yaml is configured correctly for your K8s cluster
+   kubectl apply -f ./default/k8s/deployment.yaml
+
+   # Turn on containers for K8s testing
+   COMPOSE_PROFILES=kubernetes,standard \
+   CODAQUI_TESTING_WITH_KUBERNETES=true \
+   CONFIG_FILE=app-config.docker.yaml,app-config.k8s.yaml \
+   podman compose up --build --force-recreate
+   ```
+
+   > **Note**: The `CODAQUI_TESTING_WITH_KUBERNETES` variable controls:
+   > - Whether Kubernetes resources (`default/k8s/*.yaml`) are loaded in the catalog
+   > - Activation of kubectl-proxy service
+   > - K8s-specific configuration from `app-config.k8s.yaml`
 
 5. **Access the portal**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:7007
+   - **If K8s testing enabled**: kubectl proxy at http://localhost:8001
 
 ## 🔒 Security Notes
 
-- **NEVER commit** `.env`, `.env.front`, `.env.database`, or `*-credentials.yaml` files
+- **NEVER commit** `.env`, `.env.only-config`, `.env.database`, or `*-credentials.yaml` files
 - All secrets must be stored in environment variables
 - Rotate credentials regularly
 - Use GitHub Secrets for CI/CD pipelines

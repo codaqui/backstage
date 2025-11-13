@@ -1,0 +1,18 @@
+# Kubernetes Testing Configuration
+# This file is loaded ONLY when CODAQUI_TESTING_WITH_KUBERNETES=true
+
+kubernetes:
+  frontend:
+    refreshIntervalMs: 30000
+    podDelete:
+      enabled: true
+  serviceLocatorMethod:
+    type: 'multiTenant'
+  clusterLocatorMethods:
+    - type: 'config'
+      clusters:
+        - url: http://kubectl-proxy:8001
+          name: podman-desktop-cluster
+          authProvider: 'localKubectlProxy'
+          skipTLSVerify: true
+          skipMetricsLookup: true

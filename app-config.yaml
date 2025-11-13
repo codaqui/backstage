@@ -82,21 +82,23 @@ catalog:
     - allow: [Component, System, API, Resource, Location]
   locations:
   
-    # Fixed General Locations
+    # Common Resources (always loaded: users, groups, systems)
     - type: file
-      target: ./default/*.yaml
+      target: ./default/common/*.yaml
       rules:
         - allow: [User, Group, Component, System, Domain]
+
+    # Kubernetes Resources (loaded when files exist)
+    - type: file
+      target: ./default/k8s/catalog-info.yaml
+      rules:
+        - allow: [Component, Resource]
 
     # Software Templates
     - type: file
       target: ./default/templates/*/template.yaml
       rules:
         - allow: [Template]
-
-
-kubernetes:
-  # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
 
 # see https://backstage.io/docs/permissions/getting-started for more on the permission framework
 permission:
