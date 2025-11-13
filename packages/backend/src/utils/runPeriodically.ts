@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { LoggerService } from '@backstage/backend-plugin-api';
+
 /**
  * Runs a function periodically at a given interval.
  * Based on: https://github.com/backstage/backstage/blob/master/plugins/kubernetes-backend/src/service/runPeriodically.ts
@@ -21,6 +23,7 @@
 export function runPeriodically(
   fn: () => Promise<void>,
   intervalMs: number,
+  logger?: LoggerService,
 ): () => void {
   let cancel = false;
 
@@ -31,7 +34,7 @@ export function runPeriodically(
     try {
       await fn();
     } catch (error) {
-      console.error('Periodic task failed', error);
+      logger?.error('Periodic task failed', error as Error);
     }
     setTimeout(runOnce, intervalMs);
   };
