@@ -139,14 +139,12 @@ export const useKubernetesResources = () => {
       }
     }
 
-
-    // Return only cataloged resources; uncataloged discovery removed per design decision
     return {
       clusters: clusterData,
       allResources,
       catalogedCount: allResources.filter(r => r.cataloged).length,
-      uncatalogedCount: 0,
     };
+    
   }, [baseUrl, identityApi]);
 
   return {
