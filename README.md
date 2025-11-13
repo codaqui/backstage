@@ -10,8 +10,7 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 - Yarn (enabled via corepack)
 - Podman or Docker
 - GitHub Account
-- Kubernetes Local Cluster
-  - Apply the `default/k8s-sample/deployment.yaml` to create a local cluster for testing
+- **Optional**: Local Kubernetes cluster for testing K8s features
 
 ### Initial Setup
 
@@ -40,21 +39,32 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 
    - **GitHub OAuth App**: Create at https://github.com/settings/applications/new
    - **GitHub App**: Create at https://github.com/organizations/codaqui/settings/apps/new
+   - **Kubernetes Testing** (Optional): Set `CODAQUI_TESTING_WITH_KUBERNETES=true`
    - See `.env.example` for detailed instructions
 
-4. **Run with Podman Compose**
+4. **Run the portal**
 
    ```bash
-   podman compose up --build --force-recreate
+   # Standard mode
+   COMPOSE_PROFILES=standard CODAQUI_TESTING_WITH_KUBERNETES=false CONFIG_FILE=app-config.docker.yaml podman compose up --build --force-recreate
+   ```
+
+   ```bash
+   # Verify ./default/k8s-sample/deployment.yaml is configured correctly for your K8s cluster
+   kubectl apply -f ./default/k8s-sample/deployment.yaml
+
+   # Turn on containers for K8s testing
+   COMPOSE_PROFILES=kubernetes CODAQUI_TESTING_WITH_KUBERNETES=true CONFIG_FILE=app-config.docker.yaml,app-config.k8s.yaml podman compose up --build --force-recreate
    ```
 
 5. **Access the portal**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:7007
+   - **If K8s testing enabled**: kubectl proxy at http://localhost:8001
 
 ## 🔒 Security Notes
 
-- **NEVER commit** `.env`, `.env.front`, `.env.database`, or `*-credentials.yaml` files
+- **NEVER commit** `.env`, `.env.only-config`, `.env.database`, or `*-credentials.yaml` files
 - All secrets must be stored in environment variables
 - Rotate credentials regularly
 - Use GitHub Secrets for CI/CD pipelines
