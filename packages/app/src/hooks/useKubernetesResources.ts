@@ -147,7 +147,7 @@ export const useKubernetesResources = () => {
       catalogedCount: allResources.filter(r => r.cataloged).length,
       uncatalogedCount: 0,
     };
-  }, [baseUrl]);
+  }, [baseUrl, identityApi]);
 
   return {
     data: value,
