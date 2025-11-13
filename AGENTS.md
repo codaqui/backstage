@@ -66,10 +66,20 @@ codaqui-portal/
 │   │       └── apis.ts               # API configuration
 │   ├── backend/                      # Backend Node.js application
 │   └── plugins/                      # Custom Backstage plugins
-├── default/                          # Default entities
-│   ├── guest.yaml                    # Guest user/group config
-│   ├── system-general.yaml           # System entity
-│   └── domain-codaqui.yaml           # Domain entity
+├── default/                          # Default entities (organized by context)
+│   ├── common/                       # Always loaded resources
+│   │   ├── guest.yaml                # Guest user/group config
+│   │   ├── system-general.yaml       # General system entity
+│   │   ├── system-learning-resources.yaml  # Learning resources system
+│   │   ├── system-social-resources.yaml    # Social resources system
+│   │   └── system-whatsapp-groups.yaml     # WhatsApp groups system
+│   ├── k8s/                          # Kubernetes-specific resources
+│   │   ├── .gitkeep                  # Keeps folder in git
+│   │   ├── catalog-info.yaml         # K8s sample component
+│   │   └── deployment.yaml           # K8s deployment manifest
+│   └── templates/                    # Software templates
+│       └── favorite-animal/          # Example template
+│           └── template.yaml
 ├── docs/                             # Documentation files
 ├── docker/                           # Docker-related files
 ├── app-config.yaml                   # Main Backstage config
@@ -103,6 +113,10 @@ POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=secret
+POSTGRES_DB=backstage
+
+# Kubernetes Testing (optional)
+CODAQUI_TESTING_WITH_KUBERNETES=false  # Set to 'true' for K8s testing mode
 ```
 
 See `.env.example` for detailed instructions on creating GitHub OAuth App and GitHub App.
@@ -702,12 +716,30 @@ Configure where Backstage finds entities:
 # app-config.yaml
 catalog:
   locations:
+    # Common resources (always loaded: users, groups, systems)
     - type: file
-      target: ./default/*.yaml
+      target: ./default/common/*.yaml
+      rules:
+        - allow: [User, Group, Component, System, Domain]
 
+    # Kubernetes resources (loaded when files exist)
+    - type: file
+      target: ./default/k8s/*.yaml
+      rules:
+        - allow: [Component, Resource]
+
+    # Software templates
+    - type: file
+      target: ./default/templates/*/template.yaml
+      rules:
+        - allow: [Template]
+
+    # External templates (optional)
     - type: url
       target: https://github.com/codaqui/templates/blob/main/catalog-info.yaml
 ```
+
+**Note**: Kubernetes resources are conditionally loaded based on the `ENABLE_K8S` build argument. When `ENABLE_K8S=false`, the YAML files are removed during the Docker build process.
 
 ## 🎓 Resources for Learning
 
@@ -774,6 +806,10 @@ Current policy (can be customized):
 4. **GitHub Integration**: Automatic organization sync
 5. **Software Templates**: Starting template library
 6. **Architecture Documentation**: Consolidated in AGENTS.md
+7. **Kubernetes Integration**: Conditional K8s resource loading
+8. **Docker Optimization**: ENABLE_K8S build arg for smaller images
+9. **Catalog Organization**: Separated common vs K8s resources
+10. **Multi-config Support**: Frontend/backend support multiple config files
 
 ## 🚀 Deployment
 
@@ -806,6 +842,35 @@ podman build -f Dockerfile.backend -t codaqui/backstage-backend .
 - **Development**: `app-config.yaml`
 - **Docker**: `app-config.docker.yaml` (merged)
 - **Production**: `app-config.production.yaml` (merged)
+- **Kubernetes Testing**: `app-config.k8s.yaml` (merged with docker config)
+
+### Docker Build Arguments
+
+```yaml
+# Dockerfile.backend & Dockerfile.frontend
+ARG NODE_ENV
+ARG NODE_OPTIONS
+ARG CONFIG_FILE
+ARG ENABLE_K8S=false  # Controls K8s resource inclusion
+```
+
+**ENABLE_K8S behavior:**
+- `true`: Includes `./default/k8s/*.yaml` files in catalog
+- `false`: Removes K8s YAML files during build (smaller image, no K8s resources)
+
+### Kubernetes Integration
+
+When `CODAQUI_TESTING_WITH_KUBERNETES=true`:
+
+1. **kubectl-proxy service** starts (port 8001)
+2. **ENABLE_K8S=true** passed to Docker builds
+3. **K8s resources** loaded from `./default/k8s/*.yaml`
+4. **K8s-specific config** from `app-config.k8s.yaml` applied
+
+**Required for K8s testing:**
+- Local Kubernetes cluster (Kind, Minikube, etc.)
+- `kubectl` configured to access cluster
+- K8s resources deployed: `kubectl apply -f ./default/k8s/deployment.yaml`
 
 ## 🤝 Contributing Guidelines
 
@@ -858,12 +923,39 @@ Check:
 - `UnifiedThemeProvider` wraps content
 - Theme object structure matches Backstage API
 
-#### 4. Logo not showing
+#### 5. Kubernetes resources not loading
 
-Check:
-- File exists in `assets/logos/`
-- Import path is correct (relative from component)
-- SVG file is valid
+**Symptoms:**
+- K8s components not appearing in catalog
+- kubectl-proxy connection errors
+
+**Checks:**
+```bash
+# Verify K8s mode is enabled
+echo $CODAQUI_TESTING_WITH_KUBERNETES  # Should be "true"
+
+# Check if K8s files exist in container
+podman exec -it codaqui-portal-backend ls -la /app/default/k8s/
+
+# Verify kubectl-proxy is running
+podman ps | grep kubectl-proxy
+
+# Test K8s cluster connection
+kubectl get nodes
+```
+
+**Solutions:**
+```bash
+# Enable K8s mode
+export CODAQUI_TESTING_WITH_KUBERNETES=true
+
+# Rebuild containers
+podman compose down
+podman compose up --build --force-recreate
+
+# Deploy K8s resources
+kubectl apply -f ./default/k8s/deployment.yaml
+```
 
 ## 📞 Support
 
@@ -874,7 +966,7 @@ Check:
 
 ---
 
-**Last Updated**: 2025-11-07  
+**Last Updated**: 2025-11-13  
 **Version**: 1.0.0  
 **Maintained By**: Codaqui Community  
 **License**: Apache License 2.0
@@ -894,6 +986,9 @@ Check:
 ✅ Themes → theme/
 ✅ Assets → assets/logos/
 ✅ Tests → __tests__/
+✅ Common entities → default/common/
+✅ K8s entities → default/k8s/
+✅ Templates → default/templates/
 ```
 
 ### Import Patterns
@@ -926,7 +1021,21 @@ yarn tsc                # Check TypeScript
 yarn lint               # Run linter
 yarn lint:fix           # Fix lint issues
 yarn test               # Run tests (when available)
-podman compose up       # Run with containers
+
+# Docker/Podman commands
+podman compose up       # Run with containers (standard mode)
+podman compose up --build --force-recreate  # Rebuild containers
+
+# Kubernetes testing mode
+export CODAQUI_TESTING_WITH_KUBERNETES=true
+COMPOSE_PROFILES=kubernetes,standard podman compose up --build
+
+# Check container logs
+podman logs codaqui-portal-backend
+podman logs codaqui-portal-frontend
+
+# Access containers
+podman exec -it codaqui-portal-backend bash
 ```
 
 ---
