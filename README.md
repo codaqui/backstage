@@ -54,7 +54,7 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
    kubectl apply -f ./default/k8s-sample/deployment.yaml
 
    # Turn on containers for K8s testing
-   COMPOSE_PROFILES=kubernetes CODAQUI_TESTING_WITH_KUBERNETES=true CONFIG_FILE=app-config.docker.yaml,app-config.k8s.yaml podman compose up --build --force-recreate
+   COMPOSE_PROFILES=kubernetes,standard CODAQUI_TESTING_WITH_KUBERNETES=true CONFIG_FILE=app-config.docker.yaml,app-config.k8s.yaml podman compose up --build --force-recreate
    ```
 
 5. **Access the portal**
