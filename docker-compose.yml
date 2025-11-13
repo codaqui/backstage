@@ -2,6 +2,7 @@ services:
   # kubectl proxy to connect to local Kind cluster
   # This service is OPTIONAL and only starts when profile 'kubernetes' is active
   # Enable with: COMPOSE_PROFILES=kubernetes or CODAQUI_TESTING_WITH_KUBERNETES=true
+  # The backend service will automatically connect to it when both profiles are active
   kubectl-proxy:
     profiles: ['kubernetes']
     image: alpine/k8s:1.31.13
@@ -83,9 +84,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      kubectl-proxy:
-        condition: service_started
-        required: false  # Optional dependency - only required if kubernetes profile is active
     healthcheck:
       test:
         [

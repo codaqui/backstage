@@ -3,6 +3,7 @@
 
 kubernetes:
   frontend:
+    refreshIntervalMs: 30000
     podDelete:
       enabled: true
   serviceLocatorMethod:
