@@ -15,11 +15,3 @@ kubernetes:
           authProvider: 'localKubectlProxy'
           skipTLSVerify: true
           skipMetricsLookup: true
-
-catalog:
-  locations:
-    # Kubernetes Sample Component (loaded only in K8s testing mode)
-    - type: file
-      target: ./default/k8s-sample/catalog-info.yaml
-      rules:
-        - allow: [Component]
