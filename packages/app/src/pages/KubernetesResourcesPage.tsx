@@ -277,8 +277,19 @@ export const KubernetesResourcesPage = () => {
   );
 };
 
+interface KubernetesResource {
+  name: string;
+  namespace?: string;
+  kind?: string;
+  cluster: string;
+  labels: Record<string, string>;
+  cataloged?: boolean;
+  catalogEntity?: string;
+  [key: string]: any; // Add other properties as needed
+}
+
 interface ResourcesTableProps {
-  resources: any[];
+  resources: KubernetesResource[];
   classes: Record<string, string>;
 }
 
