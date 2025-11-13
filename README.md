@@ -44,18 +44,30 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 
 4. **Run the portal**
 
+   **Standard mode (without Kubernetes resources):**
    ```bash
-   # Standard mode
-   COMPOSE_PROFILES=standard CODAQUI_TESTING_WITH_KUBERNETES=false CONFIG_FILE=app-config.docker.yaml podman compose up --build --force-recreate
+   COMPOSE_PROFILES=standard \
+   CODAQUI_TESTING_WITH_KUBERNETES=false \
+   CONFIG_FILE=app-config.docker.yaml \
+   podman compose up --build --force-recreate
    ```
 
+   **Kubernetes testing mode (includes K8s resources):**
    ```bash
-   # Verify ./default/k8s-sample/deployment.yaml is configured correctly for your K8s cluster
-   kubectl apply -f ./default/k8s-sample/deployment.yaml
+   # Verify ./default/k8s/deployment.yaml is configured correctly for your K8s cluster
+   kubectl apply -f ./default/k8s/deployment.yaml
 
    # Turn on containers for K8s testing
-   COMPOSE_PROFILES=kubernetes,standard CODAQUI_TESTING_WITH_KUBERNETES=true CONFIG_FILE=app-config.docker.yaml,app-config.k8s.yaml podman compose up --build --force-recreate
+   COMPOSE_PROFILES=kubernetes,standard \
+   CODAQUI_TESTING_WITH_KUBERNETES=true \
+   CONFIG_FILE=app-config.docker.yaml,app-config.k8s.yaml \
+   podman compose up --build --force-recreate
    ```
+
+   > **Note**: The `CODAQUI_TESTING_WITH_KUBERNETES` variable controls:
+   > - Whether Kubernetes resources (`default/k8s/*.yaml`) are loaded in the catalog
+   > - Activation of kubectl-proxy service
+   > - K8s-specific configuration from `app-config.k8s.yaml`
 
 5. **Access the portal**
    - Frontend: http://localhost:3000

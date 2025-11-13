@@ -71,6 +71,7 @@ services:
         - NODE_ENV=${NODE_ENV}
         - NODE_OPTIONS=${NODE_OPTIONS}
         - CONFIG_FILE=${CONFIG_FILE}
+        - ENABLE_K8S=${CODAQUI_TESTING_WITH_KUBERNETES:-false}
     restart: unless-stopped
     env_file:
       - path: .env.example
@@ -113,6 +114,7 @@ services:
         - NODE_ENV=${NODE_ENV}
         - NODE_OPTIONS=${NODE_OPTIONS}
         - CONFIG_FILE=${CONFIG_FILE}
+        - ENABLE_K8S=${CODAQUI_TESTING_WITH_KUBERNETES:-false}
     restart: unless-stopped
     env_file:
       - path: .env.example
