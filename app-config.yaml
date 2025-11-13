@@ -90,7 +90,7 @@ catalog:
 
     # Kubernetes Resources (loaded when files exist)
     - type: file
-      target: ./default/k8s/*.yaml
+      target: ./default/k8s/catalog-info.yaml
       rules:
         - allow: [Component, Resource]
 
