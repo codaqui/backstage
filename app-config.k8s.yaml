@@ -1,0 +1,25 @@
+# Kubernetes Testing Configuration
+# This file is loaded ONLY when CODAQUI_TESTING_WITH_KUBERNETES=true
+
+kubernetes:
+  frontend:
+    podDelete:
+      enabled: true
+  serviceLocatorMethod:
+    type: 'multiTenant'
+  clusterLocatorMethods:
+    - type: 'config'
+      clusters:
+        - url: http://kubectl-proxy:8001
+          name: podman-desktop-cluster
+          authProvider: 'localKubectlProxy'
+          skipTLSVerify: true
+          skipMetricsLookup: true
+
+catalog:
+  locations:
+    # Kubernetes Sample Component (loaded only in K8s testing mode)
+    - type: file
+      target: ./default/k8s-sample/catalog-info.yaml
+      rules:
+        - allow: [Component]

@@ -33,6 +33,9 @@ COPY .yarn ./.yarn
 # Enable corepack for yarn
 RUN corepack enable
 
+# Prepare yarn from the .yarn/releases directory
+RUN corepack prepare yarn@4.4.1 --activate
+
 # Copy workspace configuration
 COPY packages/app/package.json ./packages/app/package.json
 COPY packages/backend/package.json ./packages/backend/package.json
@@ -44,8 +47,13 @@ RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked \
 # Copy the rest of the application
 COPY . .
 
-# Build the frontend with production config
-RUN yarn workspace app build --config "../../app-config.yaml" --config "../../$CONFIG_FILE"
+# Build the frontend with production config (support multiple config files)
+RUN bash -c 'IFS="," read -ra CONFIGS <<< "${CONFIG_FILE}"; \
+    CONFIG_ARGS=""; \
+    for config in "${CONFIGS[@]}"; do \
+        CONFIG_ARGS="${CONFIG_ARGS} --config ../../${config}"; \
+    done; \
+    yarn workspace app build --config ../../app-config.yaml ${CONFIG_ARGS}'
 
 # Stage 2: Serve with nginx
 FROM public.ecr.aws/nginx/nginx:mainline-alpine
