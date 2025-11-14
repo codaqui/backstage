@@ -64,7 +64,27 @@ codaqui-portal/
 │   │       │   └── codaquiTheme.ts   # Light & dark themes
 │   │       ├── App.tsx               # Main app config & routes
 │   │       └── apis.ts               # API configuration
-│   ├── backend/                      # Backend Node.js application
+│   ├── backend-common/               # Shared Backend Code
+│   │   ├── src/
+│   │   │   ├── extensions/
+│   │   │   │   └── permissionsPolicyExtension.ts  # Shared permission policy
+│   │   │   ├── services/
+│   │   │   │   └── discoveryService.ts            # Shared discovery service
+│   │   │   ├── utils/
+│   │   │   │   └── runPeriodically.ts             # Periodic task runner
+│   │   │   └── index.ts              # Exports all shared code
+│   │   └── package.json
+│   ├── backend-catalog/              # Backend Catalog (Port 7008)
+│   │   ├── src/
+│   │   │   ├── index.ts              # Discovery Service + Catalog plugins
+│   │   │   ├── transformers.ts       # GitHub org transformers
+│   │   │   └── utils/
+│   │   └── package.json
+│   ├── backend-main/                 # Backend Main (Port 7007)
+│   │   ├── src/
+│   │   │   ├── index.ts              # Discovery Service + other plugins
+│   │   │   └── utils/
+│   │   └── package.json
 │   └── plugins/                      # Custom Backstage plugins
 ├── default/                          # Default entities (organized by context)
 │   ├── common/                       # Always loaded resources
@@ -82,15 +102,638 @@ codaqui-portal/
 │           └── template.yaml
 ├── docs/                             # Documentation files
 ├── docker/                           # Docker-related files
-├── app-config.yaml                   # Main Backstage config
+├── app-config.yaml                   # Main Backstage config (base)
+├── app-config.catalog.yaml           # Backend-catalog overrides (port 7008)
+├── app-config.main.yaml              # Backend-main overrides (port 7007)
+├── app-config.frontend.yaml          # Frontend-specific (nginx proxy)
 ├── app-config.docker.yaml            # Docker-specific config
 ├── app-config.production.yaml        # Production config
+├── Dockerfile.backend                # Backend multi-stage build
+├── Dockerfile.frontend               # Frontend build
 ├── docker-compose.yml                # Podman/Docker compose
 ├── catalog-info.yaml                 # Backstage catalog descriptor
 ├── .env.example                      # Environment variables template
 ├── README.md                         # User-facing documentation
 └── AGENTS.md                         # This file (technical guide)
 ```
+
+## 🏗️ Multi-Backend Architecture
+
+### Overview
+
+This project implements a **microservices architecture** with two independent backends that communicate via a custom **Discovery Service**, plus a **shared code package** for common utilities:
+
+#### 0. **backend-common** (Shared Library)
+**Purpose:** DRY principle - avoid code duplication between backends
+
+**What's shared:**
+- `permissionsPolicyExtension.ts` - Custom RBAC policy (used by both backends)
+- `discoveryService.ts` - Custom Discovery Service for multi-backend communication
+- `runPeriodically.ts` - Utility for periodic tasks
+
+**Package name:** `@internal/backend-common`
+
+**Usage:**
+```typescript
+// In backend-catalog or backend-main
+import { 
+  permissionsPolicyExtension, 
+  customDiscoveryServiceFactory,
+  runPeriodically 
+} from '@internal/backend-common';
+
+backend.add(customDiscoveryServiceFactory);
+backend.add(permissionsPolicyExtension);
+```
+
+**Why this matters:**
+- ✅ Single source of truth for shared logic
+- ✅ Easier maintenance (update once, applies everywhere)
+- ✅ Consistent behavior across backends
+- ✅ Follows monorepo best practices
+- ✅ Scalable - new backends just import and use
+
+#### 1. **backend-catalog** (Port 7008)
+**Responsibilities:**
+- Catalog entities management (Components, Systems, APIs, etc)
+- GitHub PAT integration (repository discovery)
+- GitHub App integration (organization, teams, users)
+- Custom transformers (`myTeamTransformer`, `myUserTransformer`)
+- Custom Discovery Service (from backend-common)
+
+**Key Files:**
+- `packages/backend-catalog/src/index.ts` - Main entry with Catalog plugins
+- `packages/backend-catalog/src/transformers.ts` - GitHub org entity transformers
+
+**Plugins:**
+- `@backstage/plugin-catalog-backend`
+- `@backstage/plugin-catalog-backend-module-github`
+- `@backstage/plugin-catalog-backend-module-github-org`
+
+#### 2. **backend-main** (Port 7007)
+**Responsibilities:**
+- Authentication (GitHub OAuth + Guest)
+- Scaffolder (software templates)
+- TechDocs (documentation)
+- Search (with PostgreSQL)
+- Kubernetes integration
+- Custom Permission Policy
+- Notifications + Signals
+- Proxy plugin (for frontend requests)
+- Custom Discovery Service (from backend-common)
+
+**Key Files:**
+- `packages/backend-main/src/index.ts` - Main entry with all plugins
+- `packages/backend-common/src/extensions/permissionsPolicyExtension.ts` - Shared custom RBAC policy
+- `packages/backend-common/src/services/discoveryService.ts` - Shared discovery service
+
+**Plugins:**
+- `@backstage/plugin-auth-backend`
+- `@backstage/plugin-scaffolder-backend`
+- `@backstage/plugin-techdocs-backend`
+- `@backstage/plugin-search-backend`
+- `@backstage/plugin-kubernetes-backend`
+- `@backstage/plugin-permission-backend`
+- `@backstage/plugin-notifications-backend`
+- `@backstage/plugin-signals-backend`
+- `@backstage/plugin-proxy-backend`
+
+### Discovery Service Pattern
+
+**Both backends use the shared Custom Discovery Service** from `@internal/backend-common`.
+
+The Discovery Service maps plugin IDs to their backend service URLs, enabling **direct service-to-service communication** without HTTP proxy overhead.
+
+**Implementation** (`packages/backend-common/src/services/discoveryService.ts`):
+
+```typescript
+class CustomDiscoveryService implements DiscoveryService {
+  private readonly serviceMap: Map<string, string>;
+
+  constructor() {
+    this.serviceMap = new Map([
+      // Catalog service (backend-catalog)
+      ['catalog', process.env.CATALOG_SERVICE_URL || 'http://localhost:7008'],
+      
+      // Main service plugins (backend-main)
+      ['auth', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['proxy', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['scaffolder', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['techdocs', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['search', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['kubernetes', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['permission', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['notifications', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['signals', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+    ]);
+  }
+
+  async getBaseUrl(pluginId: string): Promise<string> {
+    const url = this.serviceMap.get(pluginId);
+    if (!url) {
+      throw new Error(
+        `No service URL configured for plugin: ${pluginId}. ` +
+        `Available plugins: ${Array.from(this.serviceMap.keys()).join(', ')}`
+      );
+    }
+    const fullUrl = `${url}/api/${pluginId}`;
+    console.log(`🔍 Discovery: ${pluginId} → ${fullUrl}`);
+    return fullUrl;
+  }
+
+  async getExternalBaseUrl(pluginId: string): Promise<string> {
+    return this.getBaseUrl(pluginId);
+  }
+}
+
+// Export as service factory
+export const customDiscoveryServiceFactory = createServiceFactory({
+  service: coreServices.discovery,
+  deps: {},
+  async factory() {
+    return new CustomDiscoveryService();
+  },
+});
+```
+
+**Why Custom Discovery Service?**
+- ✅ **Zero overhead**: Direct backend-to-backend calls (no proxy hop)
+- ✅ **Kubernetes ready**: Works with K8s service names (e.g., `backend-catalog.namespace.svc.cluster.local`)
+- ✅ **Scalable**: Easy to add new backends - just update the service map
+- ✅ **Observable**: Logs every discovery call for debugging
+
+### Configuration Structure
+
+```yaml
+# app-config.yaml (base - shared by both backends)
+app:
+  title: Codaqui Portal
+  baseUrl: http://localhost:3000
+backend:
+  baseUrl: http://localhost:7007  # Main backend
+  database: # PostgreSQL shared
+integrations:
+  github:
+    - host: github.com
+      token: ${GITHUB_TOKEN}  # PAT for repo access
+      # GitHub App loaded from env vars (app-config.docker.yaml)
+catalog:
+  providers:
+    github:
+      codaquiPortal:
+        organization: 'codaqui'
+      githubOrg:
+        id: 'production'
+        orgUrl: 'https://github.com/codaqui'
+# ... techdocs, auth, scaffolder configs ...
+
+# app-config.catalog.yaml (backend-catalog overrides)
+backend:
+  listen:
+    port: 7008  # Override port
+  cors:
+    origin:
+      - http://localhost:3000
+      - http://localhost:7007
+
+# app-config.main.yaml (backend-main overrides)
+backend:
+  auth:
+    keys:
+      - secret: ${BACKEND_SECRET}
+  cors:
+    origin:
+      - http://backend-catalog:7008
+      - http://localhost:7008
+      - http://localhost:3000
+
+# Note: No proxy needed - Custom DiscoveryService handles direct backend-to-backend communication
+```
+
+### API Gateway Architecture
+
+The portal uses **NGINX as API Gateway** in Docker/production to hide internal backend architecture.
+
+#### 🔐 Production (Docker) - NGINX Gateway
+
+```
+┌─────────────────────────────────────┐
+│   Browser (localhost:3000)          │
+│   All requests: /api/*              │
+└──────────────┬──────────────────────┘
+               │
+               │ Single entry point
+               │
+┌──────────────▼──────────────────────┐
+│   NGINX (Frontend Container)        │
+│   - Serves static files             │
+│   - Acts as API Gateway             │
+│   - Routes /api/catalog/* → :7008   │
+│   - Routes /api/* → :7007           │
+└───────┬──────────────────┬───────────┘
+        │                  │
+        │ (interno)        │ (interno)
+        │                  │
+ ┌──────▼──────┐    ┌──────▼──────┐
+ │ Backend     │    │ Backend     │
+ │ Catalog     │    │ Main        │
+ │ :7008       │◄───│ :7007       │
+ │ (interno)   │    │ (interno)   │
+ │             │    │             │
+ │ • Catalog   │    │ • Auth      │
+ │ • GitHub    │    │ • Scaffolder│
+ │ • Org Data  │    │ • TechDocs  │
+ └─────────────┘    └─────┬───────┘
+                          │
+                    ┌─────▼───────┐
+                    │ PostgreSQL  │
+                    │ (Port 5432) │
+                    └─────────────┘
+
+Discovery Service (in both backends)
+┌──────────────────────┐
+│ Plugin → Service URL │
+├──────────────────────┤
+│ catalog   → :7008    │
+│ auth      → :7007    │
+│ scaffolder→ :7007    │
+│ search    → :7007    │
+└──────────────────────┘
+```
+
+**Configuration Files:**
+- `docker/default.conf.template` - NGINX routing rules
+- `app-config.frontend.yaml` - Frontend uses NGINX proxy
+  ```yaml
+  backend:
+    baseUrl: http://localhost:3000  # Frontend → NGINX → Backends
+  ```
+
+**Benefits:**
+✅ Client doesn't know about internal architecture  
+✅ Security: Internal ports (7007, 7008) not exposed  
+✅ Flexibility: Can reorganize backends without client changes  
+✅ SSL/TLS termination at NGINX  
+✅ Rate limiting and caching  
+
+#### 💻 Development (Local) - Backend Main as Gateway
+
+```
+┌─────────────────────────────────────┐
+│   Browser (localhost:3000)          │
+│   Requests: /api/*                  │
+└──────────────┬──────────────────────┘
+               │
+               │ Direct connection
+               │
+        ┌──────▼──────┐
+        │ Backend     │
+        │ Main        │
+        │ :7007       │
+        │ (exposed)   │
+        │             │
+        │ Proxy:      │
+        │ /api/catalog│
+        │    ↓        │
+        └─────┬───────┘
+              │
+              │ Internal proxy
+              │
+       ┌──────▼──────┐
+       │ Backend     │
+       │ Catalog     │
+       │ :7008       │
+       │ (exposed)   │
+       └─────────────┘
+```
+
+**Configuration Files:**
+- `app-config.yaml` - Base config
+  ```yaml
+  backend:
+    baseUrl: http://localhost:7007  # Frontend → Backend Main
+  ```
+- `app-config.main.yaml` - Backend Main config (no proxy needed)
+  ```yaml
+  backend:
+    cors:
+      origin:
+        - http://backend-catalog:7008  # Docker service name
+        - http://localhost:7008         # Local fallback
+        - http://localhost:3000         # NGINX origin
+  ```
+
+**Why not NGINX locally?**
+❌ Extra complexity for development  
+❌ Requires container rebuild for changes  
+❌ Makes debugging harder  
+❌ Hot reload doesn't work well  
+
+**Benefits of local mode:**
+✅ Fast development (hot reload)  
+✅ Direct backend debugging  
+✅ Clear logs without intermediaries  
+✅ No container rebuild needed  
+
+#### Configuration Files Summary
+
+| File | Purpose | Used In |
+|------|---------|---------|
+| `app-config.yaml` | Base config (backend: :7007) | Local dev |
+| `app-config.frontend.yaml` | NGINX proxy (backend: :3000) | Docker |
+| `app-config.main.yaml` | Backend Main config (CORS, auth) | Both |
+| `app-config.catalog.yaml` | Backend Catalog config (CORS, auth) | Both |
+| `docker/default.conf.template` | NGINX routing rules | Docker |
+| `docker/inject-config.sh` | Runtime config (no internal URLs) | Docker |
+| `docker/inject-config.sh` | Runtime config (no internal URLs) | Docker |
+
+#### Security Comparison
+
+| Aspect | Docker (NGINX) | Local Dev |
+|--------|----------------|-----------|
+| **Exposed Ports** | Only 3000 | 3000, 7007, 7008 |
+| **Architecture Visibility** | Hidden | Visible |
+| **Internal URLs** | Never exposed | Exposed on localhost |
+| **Production Ready** | ✅ Yes | ❌ No |
+| **Development Speed** | ⚠️ Slow (rebuild) | ✅ Fast (hot reload) |
+
+### Running Backends
+
+**Development (local):**
+```bash
+# Terminal 1: Backend Catalog
+yarn workspace backend-catalog start --config ../../app-config.yaml --config ../../app-config.catalog.yaml
+
+# Terminal 2: Backend Main
+yarn workspace backend-main start --config ../../app-config.yaml --config ../../app-config.main.yaml
+
+# Terminal 3: Frontend
+yarn workspace app start
+
+# Or use npm scripts:
+yarn start:catalog  # Backend catalog
+yarn start:main     # Backend main
+yarn start          # Frontend
+```
+
+**Docker Compose:**
+```bash
+# Standard profile (both backends)
+podman compose --profile standard up -d
+
+# View logs
+podman compose logs -f backend-catalog
+podman compose logs -f backend-main
+```
+
+### Docker Build Strategy
+
+The `Dockerfile.backend` uses **build arguments** to support both backends:
+
+```dockerfile
+# Build arguments
+ARG BACKEND_PACKAGE=backend  # Can be: backend-catalog or backend-main
+ARG CONFIG_FILE=app-config.yaml  # Comma-separated configs
+ARG ENABLE_K8S=false
+
+# Copy and build specific backend
+COPY packages/${BACKEND_PACKAGE} ./packages/${BACKEND_PACKAGE}
+RUN yarn workspace ${BACKEND_PACKAGE} build
+```
+
+**Build examples:**
+```bash
+# Backend Catalog
+podman build \
+  -f Dockerfile.backend \
+  --build-arg BACKEND_PACKAGE=backend-catalog \
+  --build-arg CONFIG_FILE=app-config.yaml,app-config.docker.yaml,app-config.catalog.yaml \
+  -t codaqui/backstage-catalog .
+
+# Backend Main
+podman build \
+  -f Dockerfile.backend \
+  --build-arg BACKEND_PACKAGE=backend-main \
+  --build-arg CONFIG_FILE=app-config.yaml,app-config.docker.yaml,app-config.main.yaml \
+  -t codaqui/backstage-main .
+```
+
+### GitHub Integration (Dual Mode)
+
+The project uses **two types** of GitHub integration:
+
+1. **Personal Access Token (PAT)** - `app-config.yaml`
+   - For basic repository operations (clone, read files)
+   - Used by catalog discovery
+   - Set via `GITHUB_TOKEN` environment variable
+
+2. **GitHub App** - `app-config.docker.yaml`
+   - For organization-level operations (users, teams, webhooks)
+   - Credentials loaded from environment variables:
+     - `GITHUB_ORG_APP_ID`
+     - `GITHUB_ORG_CLIENT_ID`
+     - `GITHUB_ORG_CLIENT_SECRET`
+     - `GITHUB_ORG_WEBHOOK_URL`
+     - `GITHUB_ORG_WEBHOOK_SECRET`
+     - `GITHUB_ORG_PRIVATE_KEY`
+
+**Configuration:**
+```yaml
+# app-config.yaml
+integrations:
+  github:
+    - host: github.com
+      token: ${GITHUB_TOKEN}  # PAT
+      # GitHub App loaded from app-config.docker.yaml
+
+# app-config.docker.yaml
+integrations:
+  github:
+    - host: github.com
+      apps:
+        - appId: ${GITHUB_ORG_APP_ID}
+          clientId: ${GITHUB_ORG_CLIENT_ID}
+          clientSecret: ${GITHUB_ORG_CLIENT_SECRET}
+          webhookUrl: ${GITHUB_ORG_WEBHOOK_URL}
+          webhookSecret: ${GITHUB_ORG_WEBHOOK_SECRET}
+          privateKey: ${GITHUB_ORG_PRIVATE_KEY}
+```
+
+### Custom Transformers (backend-catalog)
+
+Located in `packages/backend-catalog/src/transformers.ts`:
+
+```typescript
+export const myTeamTransformer: TeamTransformer = async (team, ctx) => {
+  const backstageTeam = await defaultOrganizationTeamTransformer(team, ctx);
+  if (backstageTeam) {
+    backstageTeam.metadata.labels = {
+      ...backstageTeam.metadata.labels,
+      'github-org-integration': 'true',
+    };
+  }
+  return backstageTeam;
+};
+
+export const myUserTransformer: UserTransformer = async (user, ctx) => {
+  const backstageUser = await defaultUserTransformer(user, ctx);
+  if (backstageUser) {
+    backstageUser.metadata.labels = {
+      ...backstageUser.metadata.labels,
+      'github-org-integration': 'true',
+    };
+  }
+  return backstageUser;
+};
+```
+
+### Custom Permission Policy (Shared in backend-common)
+
+Located in `packages/backend-common/src/extensions/permissionsPolicyExtension.ts`:
+
+**Used by both backend-catalog and backend-main** via `@internal/backend-common` import.
+
+Implements role-based access control:
+- **Unauthenticated users**: Read-only catalog access
+- **Guest users**: Limited permissions
+- **Authenticated users**: Full read access
+- **Resource owners**: Can modify/delete their resources
+
+### 🔧 Minimum Required Plugins per Backend
+
+When splitting backends in a microservices architecture, each backend needs **minimum infrastructure plugins** to function in the ecosystem.
+
+#### 📦 Backend Exposing APIs (needs to validate callers)
+
+**Always Required:**
+```typescript
+// Validate JWT tokens from other services
+backend.add(import('@backstage/plugin-auth-backend'));
+
+// Enforce permission policies
+backend.add(import('@backstage/plugin-permission-backend'));
+
+// Auth providers (at least the ones that issue tokens)
+backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
+backend.add(import('@backstage/plugin-auth-backend-module-github-provider'));
+```
+
+**Why?** Any backend exposing HTTP APIs must validate:
+1. **Who** is calling (authentication via JWT tokens)
+2. **What** they can do (authorization via permission policies)
+
+#### 🔌 Backend Consuming APIs (needs to find other services)
+
+**Always Required:**
+```typescript
+// Custom Discovery Service
+class CustomDiscoveryService implements DiscoveryService {
+  private serviceMap = new Map([
+    ['catalog', 'http://backend-catalog:7008'],
+    ['auth', 'http://backend-main:7007'],
+    // ... map plugin ID → service URL
+  ]);
+}
+```
+
+**Why?** Backends need to know where other services are located to make inter-service calls.
+
+#### 🎯 Rule of Thumb
+
+| Backend Type | Required Plugins |
+|--------------|------------------|
+| **Exposes APIs** | auth + permission + discovery |
+| **Consumes APIs** | discovery |
+| **Both** | auth + permission + discovery |
+
+#### ⚠️ Common Mistake
+
+Forgetting to add auth/permission plugins to a backend that exposes APIs will result in:
+- ❌ All requests return `401 Unauthorized`
+- ❌ Even authenticated users can't access the API
+- ❌ JWT tokens are not validated
+
+**Example from this project:**
+- `backend-catalog` initially only had catalog plugins
+- It was returning 401 because it couldn't validate tokens
+- **Solution:** Added auth + permission plugins to validate tokens from backend-main
+
+#### 🔐 How Inter-Backend Authentication Works
+
+```
+1. User → Backend Main
+   POST /api/auth/guest/refresh
+   ← JWT token (signed by Main's auth plugin)
+
+2. User → Backend Catalog (via NGINX)
+   GET /api/catalog/entities
+   Header: Authorization: Bearer <JWT token>
+   
+3. Backend Catalog validates:
+   - Verifies JWT signature (auth plugin checks Main's public key)
+   - Validates permissions (permission plugin checks policies)
+   - If valid: Returns data
+   - If invalid: Returns 401
+```
+
+#### 📊 Our Backend Configuration
+
+**Backend Main (7007):**
+```typescript
+// Infrastructure (required)
+backend.add(import('@backstage/plugin-auth-backend'));
+backend.add(import('@backstage/plugin-permission-backend'));
+
+// Business logic
+backend.add(import('@backstage/plugin-scaffolder-backend'));
+backend.add(import('@backstage/plugin-techdocs-backend'));
+backend.add(import('@backstage/plugin-search-backend'));
+```
+
+**Backend Catalog (7008):**
+```typescript
+// Infrastructure (required) ⚠️ Added to fix 401 errors
+backend.add(import('@backstage/plugin-auth-backend'));
+backend.add(import('@backstage/plugin-permission-backend'));
+
+// Business logic
+backend.add(import('@backstage/plugin-catalog-backend'));
+backend.add(import('@backstage/plugin-catalog-backend-module-github'));
+```
+
+### Benefits of This Architecture
+
+#### Technical Benefits
+- ✅ **Separation of Concerns**: Each backend has clear responsibilities
+- ✅ **Independent Scaling**: Scale catalog and main backends separately based on load
+- ✅ **Independent Deployment**: Deploy backends independently without downtime
+- ✅ **Isolated Failures**: Failure in one service doesn't crash the other
+- ✅ **Better Maintainability**: Smaller codebases, easier to understand and modify
+
+#### Operational Benefits
+- ✅ **Isolated Logs**: Separate logs per service for easier debugging
+- ✅ **Granular Metrics**: Monitor each service independently
+- ✅ **Easier Debugging**: Smaller surface area to investigate issues
+- ✅ **Testing Isolation**: Test services independently
+
+#### Development Benefits
+- ✅ **Team Autonomy**: Different teams can own different backends
+- ✅ **Technology Flexibility**: Can use different tools per backend if needed
+- ✅ **Faster CI/CD**: Build and test only what changed
+
+### Request Flow Example
+
+**Scenario**: User creates a new component via Scaffolder
+
+1. **Frontend** → POST `/api/scaffolder/v2/tasks` → **Backend Main**
+2. **Backend Main** processes template via Scaffolder
+3. **Scaffolder** needs to register component in catalog
+4. **Discovery Service** resolves `catalog` → `http://localhost:7008`
+5. **Backend Main** → POST `http://localhost:7008/api/catalog/entities`
+6. **Backend Catalog** receives and registers entity
+7. **Backend Catalog** → returns success
+8. **Backend Main** → returns task ID to Frontend
+9. **Frontend** polls task status until complete
 
 ## 🔧 Technical Configuration
 
@@ -99,25 +742,48 @@ codaqui-portal/
 Required environment variables (never commit actual values):
 
 ```bash
+# GitHub Personal Access Token (for repository operations)
+GITHUB_TOKEN=your_github_pat
+
 # GitHub OAuth App (for user authentication)
 AUTH_GITHUB_CLIENT_ID=your_oauth_app_client_id
 AUTH_GITHUB_CLIENT_SECRET=your_oauth_app_client_secret
 
-# GitHub App (for GitHub integration)
-GITHUB_TOKEN=your_github_token
+# GitHub App (for organization integration)
+GITHUB_ORG_APP_ID=your_github_app_id
+GITHUB_ORG_CLIENT_ID=your_github_app_client_id
+GITHUB_ORG_CLIENT_SECRET=your_github_app_client_secret
+GITHUB_ORG_WEBHOOK_URL=https://your-domain.com/api/github/webhook
+GITHUB_ORG_WEBHOOK_SECRET=your_webhook_secret
+GITHUB_ORG_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+
+# Service Discovery (for inter-backend communication)
+CATALOG_SERVICE_URL=http://localhost:7008  # or http://backend-catalog:7008 in Docker
+MAIN_SERVICE_URL=http://localhost:7007     # or http://backend-main:7007 in Docker
+
+# App Configuration
 APP_CONFIG_APP_BASEURL=http://localhost:3000
 APP_CONFIG_BACKEND_BASEURL=http://localhost:7007
 
-# Database (PostgreSQL)
+# Database (PostgreSQL - shared by both backends)
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=secret
 POSTGRES_DB=backstage
 
+# Node Configuration
+NODE_ENV=production
+NODE_OPTIONS=--max-old-space-size=4096
+
 # Kubernetes Testing (optional)
 CODAQUI_TESTING_WITH_KUBERNETES=false  # Set to 'true' for K8s testing mode
 ```
+
+**Important Notes:**
+- GitHub App credentials are loaded from **environment variables only** (no YAML file)
+- Service URLs change between local development and Docker (localhost vs container names)
+- Both backends share the same PostgreSQL database
 
 See `.env.example` for detailed instructions on creating GitHub OAuth App and GitHub App.
 
@@ -789,7 +1455,7 @@ Current policy (can be customized):
 
 ## 📊 Project Metrics & Status
 
-### Current State (as of 2025-11-07)
+### Current State (as of 2025-11-13)
 
 - **Status**: Beta
 - **Backstage Version**: Latest (check package.json)
@@ -800,16 +1466,20 @@ Current policy (can be customized):
 
 ### Recent Improvements
 
-1. **Theme Customization**: Codaqui green (#57B593) throughout
-2. **Logo Reorganization**: Moved to `assets/logos/` structure
-3. **Permission Policy**: Custom policy with guest support
-4. **GitHub Integration**: Automatic organization sync
-5. **Software Templates**: Starting template library
-6. **Architecture Documentation**: Consolidated in AGENTS.md
-7. **Kubernetes Integration**: Conditional K8s resource loading
-8. **Docker Optimization**: ENABLE_K8S build arg for smaller images
-9. **Catalog Organization**: Separated common vs K8s resources
-10. **Multi-config Support**: Frontend/backend support multiple config files
+1. **Multi-Backend Architecture**: Split into backend-catalog (7008) and backend-main (7007)
+2. **Discovery Service**: Custom service for inter-backend communication
+3. **GitHub App Integration**: Environment variables only, no credential files
+4. **Dockerfile Optimization**: Single Dockerfile.backend with BACKEND_PACKAGE arg
+5. **Docker Compose**: Support for both backends with proper service discovery
+6. **Theme Customization**: Codaqui green (#57B593) throughout
+7. **Logo Reorganization**: Moved to `assets/logos/` structure
+8. **Permission Policy**: Custom policy with guest support
+9. **GitHub Integration**: Automatic organization sync with transformers
+10. **Software Templates**: Starting template library
+11. **Architecture Documentation**: All technical docs consolidated in AGENTS.md
+12. **Kubernetes Integration**: Conditional K8s resource loading
+13. **Catalog Organization**: Separated common vs K8s resources
+14. **Multi-config Support**: CONFIG_FILE accepts comma-separated values
 
 ## 🚀 Deployment
 
@@ -1015,27 +1685,46 @@ Secondary: #B5B5B5  // Light Gray (dark mode)
 ### Key Commands
 
 ```bash
-yarn dev                # Local development
-yarn build              # Build production
+# Local Development (backends separated)
+yarn start:catalog      # Start backend-catalog (port 7008)
+yarn start:main         # Start backend-main (port 7007)
+yarn start              # Start frontend (port 3000)
+yarn dev                # Start all together
+
+# Build
+yarn build:all          # Build all workspaces
 yarn tsc                # Check TypeScript
 yarn lint               # Run linter
 yarn lint:fix           # Fix lint issues
 yarn test               # Run tests (when available)
 
-# Docker/Podman commands
-podman compose up       # Run with containers (standard mode)
-podman compose up --build --force-recreate  # Rebuild containers
+# Docker Build
+yarn docker:build:catalog   # Build backend-catalog image
+yarn docker:build:main      # Build backend-main image
+yarn docker:build:all       # Build both backend images
+
+# Docker/Podman Compose
+podman compose --profile standard up -d         # Start all services
+podman compose --profile standard up --build    # Rebuild and start
+podman compose down                             # Stop all services
 
 # Kubernetes testing mode
 export CODAQUI_TESTING_WITH_KUBERNETES=true
 COMPOSE_PROFILES=kubernetes,standard podman compose up --build
 
-# Check container logs
-podman logs codaqui-portal-backend
-podman logs codaqui-portal-frontend
+# Container logs
+podman logs -f codaqui-portal-backend-catalog
+podman logs -f codaqui-portal-backend-main
+podman logs -f codaqui-portal-frontend
 
 # Access containers
-podman exec -it codaqui-portal-backend bash
+podman exec -it codaqui-portal-backend-catalog bash
+podman exec -it codaqui-portal-backend-main bash
+
+# Health checks
+curl http://localhost:7008/healthcheck  # Catalog backend
+curl http://localhost:7007/healthcheck  # Main backend
+curl http://localhost:7008/api/catalog/entities  # List entities
 ```
 
 ---
