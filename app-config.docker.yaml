@@ -20,9 +20,9 @@ auth:
   providers:
     # See https://backstage.io/docs/auth/guest/provider
     guest:
-      userEntityRef: user:guest
+      userEntityRef: user:default/guest
       ownershipEntityRefs:
-        - group:guests
+        - group:default/guests
       dangerouslyAllowOutsideDevelopment: true
     github:
       development:
@@ -36,6 +36,8 @@ auth:
 integrations:
   github:
     - host: github.com
+      # Note: Explicitly NOT using token here - only GitHub App
+      # This ensures the base config's token is overridden/ignored
       apps:
         - appId: ${GITHUB_ORG_APP_ID}
           webhookUrl: ${GITHUB_ORG_WEBHOOK_URL}
