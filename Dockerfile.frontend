@@ -39,6 +39,7 @@ RUN corepack prepare yarn@4.4.1 --activate
 
 # Copy workspace configuration (ALL workspaces needed for yarn.lock resolution)
 COPY packages/app/package.json ./packages/app/package.json
+COPY packages/backend-common/package.json ./packages/backend-common/package.json
 COPY packages/backend-catalog/package.json ./packages/backend-catalog/package.json
 COPY packages/backend-main/package.json ./packages/backend-main/package.json
 
