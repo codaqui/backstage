@@ -1,7 +1,10 @@
 import { createBackend } from '@backstage/backend-defaults';
-import { createBackendModule, coreServices } from '@backstage/backend-plugin-api';
-import type { DiscoveryService } from '@backstage/backend-plugin-api';
-import { runPeriodically, permissionsPolicyExtension } from '@internal/backend-common';
+import { createBackendModule } from '@backstage/backend-plugin-api';
+import { 
+  runPeriodically, 
+  permissionsPolicyExtension,
+  customDiscoveryServiceFactory 
+} from '@internal/backend-common';
 import { Duration } from 'luxon';
 import {
   ClusterDetails,
@@ -9,56 +12,11 @@ import {
   kubernetesClusterSupplierExtensionPoint,
 } from '@backstage/plugin-kubernetes-node';
 
-// Custom Discovery Service
-// Maps plugins to their respective backend services
-class CustomDiscoveryService implements DiscoveryService {
-  private readonly serviceMap: Map<string, string>;
-
-  constructor() {
-    this.serviceMap = new Map([
-      // Catalog service (other backend)
-      ['catalog', process.env.CATALOG_SERVICE_URL || 'http://localhost:7008'],
-      
-      // Main service (this backend)
-      ['auth', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['proxy', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['scaffolder', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['techdocs', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['search', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['kubernetes', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['permission', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['notifications', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['signals', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-    ]);
-  }
-
-  async getBaseUrl(pluginId: string): Promise<string> {
-    const url = this.serviceMap.get(pluginId);
-    if (!url) {
-      throw new Error(`No URL configured for plugin: ${pluginId}`);
-    }
-    return `${url}/api/${pluginId}`;
-  }
-
-  async getExternalBaseUrl(pluginId: string): Promise<string> {
-    return this.getBaseUrl(pluginId);
-  }
-}
-
-// Discovery Service Module
-const discoveryModule = createBackendModule({
-  pluginId: 'app',
-  moduleId: 'custom-discovery',
-  register(reg) {
-    reg.registerInit({
-      deps: { discovery: coreServices.discovery },
-      async init({ discovery }) {
-        // Override with custom discovery
-        Object.assign(discovery, new CustomDiscoveryService());
-      },
-    });
-  },
-});
+// Debug Environment Variables
+console.log('🔍 Backend Main - Environment Variables:');
+console.log(`   CATALOG_SERVICE_URL: ${process.env.CATALOG_SERVICE_URL}`);
+console.log(`   MAIN_SERVICE_URL: ${process.env.MAIN_SERVICE_URL}`);
+console.log(`   BACKEND_SECRET: ${process.env.BACKEND_SECRET ? '***' + process.env.BACKEND_SECRET.slice(-4) : 'NOT SET'}`);
 
 // Custom Kubernetes Clusters Supplier
 // https://backstage.io/docs/features/kubernetes/installation
@@ -86,8 +44,9 @@ export class CustomClustersSupplier implements KubernetesClustersSupplier {
 
 const backend = createBackend();
 
-// Add custom discovery service
-backend.add(discoveryModule);
+// Replace default Discovery Service with custom implementation
+// This enables direct service-to-service communication (K8s ready)
+backend.add(customDiscoveryServiceFactory);
 
 // Example of replacing the default Kubernetes cluster discovery and service locator
 // See https://backstage.io/docs/features/kubernetes/installation#extending-the-kubernetes-backend
