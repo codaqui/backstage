@@ -1,0 +1,16 @@
+# Override config for Backend Catalog
+# Use with: --config app-config.yaml --config app-config.catalog.yaml
+# This extends the base app-config.yaml with catalog-specific overrides
+
+backend:
+  baseUrl: http://localhost:7008
+  listen:
+    port: 7008
+    host: 0.0.0.0
+  cors:
+    # Only backend-to-backend communication needs CORS
+    # Browser requests come through NGINX, which handles CORS
+    origin: 
+      - http://backend-main:7007      # Docker internal
+      - http://localhost:7007          # Fallback for local testing
+      - http://localhost:3000          # NGINX origin preservation

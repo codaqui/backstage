@@ -1,0 +1,16 @@
+# Override config for Backend Main
+# Use with: --config app-config.yaml --config app-config.main.yaml
+# This extends the base app-config.yaml with main-specific overrides
+
+backend:
+  baseUrl: http://localhost:7007
+  listen:
+    port: 7007
+    host: 0.0.0.0
+  cors:
+    # Only backend-to-backend communication needs CORS
+    # Browser requests come through NGINX, which handles CORS
+    origin:
+      - http://backend-catalog:7008    # Docker internal
+      - http://localhost:7008          # Fallback for local testing
+      - http://localhost:3000          # NGINX origin preservation
