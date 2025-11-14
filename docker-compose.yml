@@ -41,14 +41,10 @@ services:
     container_name: codaqui-portal-postgres
     image: postgres:15-alpine
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
     env_file:
       - path: .env.example
         required: false
-      - path: .env.db
+      - path: .env
         required: false
     ports:
       - '5432:5432'
@@ -62,43 +58,75 @@ services:
     networks:
       - backstage-network
 
-  backend:
+  # Backend Catalog Service
+  # Responsible for: Catalog, GitHub Organization Integration, Transformers
+  backend-catalog:
     profiles: ['standard']
-    container_name: codaqui-portal-backend
     build:
       context: .
       dockerfile: Dockerfile.backend
       args:
-        - NODE_ENV=${NODE_ENV}
-        - NODE_OPTIONS=${NODE_OPTIONS}
-        - CONFIG_FILE=${CONFIG_FILE}
-        - ENABLE_K8S=${CODAQUI_TESTING_WITH_KUBERNETES:-false}
-    restart: unless-stopped
+        BACKEND_PACKAGE: backend-catalog
+        CONFIG_FILE: "app-config.yaml,app-config.docker.yaml,app-config.catalog.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}"
+        NODE_ENV: production
+        ENABLE_K8S: ${CODAQUI_TESTING_WITH_KUBERNETES:-false}
+    container_name: codaqui-portal-backend-catalog
     env_file:
       - path: .env.example
         required: false
       - path: .env
         required: false
+    environment:
+      - CATALOG_SERVICE_URL=http://backend-catalog:7008
+      - MAIN_SERVICE_URL=http://backend-main:7007
     ports:
-      - '7007:7007'
+      - "7008:7008"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          'CMD',
-          'curl',
-          '-f',
-          '--silent',
-          '--max-time',
-          '5',
-          'http://localhost:7007/.backstage/health/v1/readiness',
-        ]
+      test: ["CMD", "curl", "-f", "http://localhost:7008/.backstage/health/v1/readiness"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
+    networks:
+      - backstage-network
+
+  # Backend Main Service
+  # Responsible for: Auth, Scaffolder, TechDocs, Search, K8s, Permissions
+  backend-main:
+    profiles: ['standard']
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        BACKEND_PACKAGE: backend-main
+        CONFIG_FILE: "app-config.yaml,app-config.docker.yaml,app-config.main.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}"
+        NODE_ENV: production
+        ENABLE_K8S: ${CODAQUI_TESTING_WITH_KUBERNETES:-false}
+    container_name: codaqui-portal-backend-main
+    env_file:
+      - path: .env.example
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - CATALOG_SERVICE_URL=http://backend-catalog:7008
+      - MAIN_SERVICE_URL=http://backend-main:7007
+    ports:
+      - "7007:7007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend-catalog:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7007/.backstage/health/v1/readiness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - backstage-network
 
@@ -109,11 +137,14 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        - NODE_ENV=${NODE_ENV}
-        - NODE_OPTIONS=${NODE_OPTIONS}
-        - CONFIG_FILE=${CONFIG_FILE}
+        - NODE_ENV=${NODE_ENV:-production}
+        - NODE_OPTIONS=${NODE_OPTIONS:---max-old-space-size=4096}
+        - CONFIG_FILE="app-config.yaml,app-config.docker.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}"
         - ENABLE_K8S=${CODAQUI_TESTING_WITH_KUBERNETES:-false}
     restart: unless-stopped
+    environment:
+      - CATALOG_SERVICE_URL=http://backend-catalog:7008
+      - MAIN_SERVICE_URL=http://backend-main:7007
     env_file:
       - path: .env.example
         required: false
@@ -122,7 +153,9 @@ services:
     ports:
       - '3000:80'
     depends_on:
-      backend:
+      backend-catalog:
+        condition: service_healthy
+      backend-main:
         condition: service_healthy
     healthcheck:
       test:

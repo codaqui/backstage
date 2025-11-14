@@ -7,6 +7,7 @@ ARG NODE_ENV
 ARG NODE_OPTIONS
 ARG CONFIG_FILE
 ARG ENABLE_K8S=false
+ARG BACKEND_PACKAGE=backend
 ENV NODE_ENV=${NODE_ENV:-development}
 ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
 ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
@@ -38,16 +39,21 @@ RUN corepack enable
 # Prepare yarn from the .yarn/releases directory
 RUN corepack prepare yarn@4.4.1 --activate
 
-# Copy workspace configuration
+# Copy workspace configuration (ALL workspaces needed for yarn.lock resolution)
+ARG BACKEND_PACKAGE
 COPY packages/app/package.json ./packages/app/package.json
-COPY packages/backend/package.json ./packages/backend/package.json
+COPY packages/backend-common/package.json ./packages/backend-common/package.json
+COPY packages/backend-catalog/package.json ./packages/backend-catalog/package.json
+COPY packages/backend-main/package.json ./packages/backend-main/package.json
 
 # Install dependencies
 RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked \
     yarn install --immutable
 
-# Copy the rest of the application
-COPY . .
+# Copy app-config files and default catalog resources
+COPY app-config*.yaml ./
+COPY default ./default
+COPY tsconfig.json ./
 
 # Handle K8s files conditionally based on ENABLE_K8S
 RUN if [ "${ENABLE_K8S}" != "true" ]; then \
@@ -57,8 +63,18 @@ RUN if [ "${ENABLE_K8S}" != "true" ]; then \
     echo "K8s mode enabled - keeping K8s resources"; \
     fi
 
-# Build the backend
-RUN yarn workspace backend build
+# Copy app source (required as dependency for backend builds)
+COPY packages/app ./packages/app
+
+# Copy backend-common (shared library used by both backends)
+COPY packages/backend-common ./packages/backend-common
+
+# Copy the specific backend directory (all files: src, .eslintrc.js, README.md, etc)
+ARG BACKEND_PACKAGE
+COPY packages/${BACKEND_PACKAGE} ./packages/${BACKEND_PACKAGE}
+
+# Build the backend (based on BACKEND_PACKAGE arg)
+RUN yarn workspace ${BACKEND_PACKAGE} build
 
 # Stage 2: Production runtime
 FROM public.ecr.aws/docker/library/node:22-bookworm-slim
@@ -68,6 +84,7 @@ ARG NODE_ENV
 ARG NODE_OPTIONS
 ARG CONFIG_FILE
 ARG ENABLE_K8S=false
+ARG BACKEND_PACKAGE=backend
 ENV NODE_ENV=${NODE_ENV:-development}
 ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
 ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
@@ -102,20 +119,24 @@ COPY --from=build --chown=node:node /app/.yarn /app/.yarn
 COPY --from=build --chown=node:node /app/.yarnrc.yml ./
 COPY --from=build --chown=node:node /app/backstage.json ./
 
-# Copy built backend and dependencies
+# Copy built backend and dependencies (based on BACKEND_PACKAGE)
+ARG BACKEND_PACKAGE
 COPY --from=build --chown=node:node /app/yarn.lock /app/package.json ./
-COPY --from=build --chown=node:node /app/packages/backend/dist/skeleton.tar.gz ./
+COPY --from=build --chown=node:node /app/packages/${BACKEND_PACKAGE}/dist/skeleton.tar.gz ./
 RUN tar xzf skeleton.tar.gz && rm skeleton.tar.gz
 
 # Install production dependencies
 RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid=1000 \
     yarn workspaces focus --all --production && rm -rf "$(yarn cache clean)"
 
-# Copy the built backend bundle and config files
-COPY --from=build --chown=node:node /app/packages/backend/dist/bundle.tar.gz ./
+# Copy the built backend bundle and config files (based on BACKEND_PACKAGE)
+ARG BACKEND_PACKAGE
+COPY --from=build --chown=node:node /app/packages/${BACKEND_PACKAGE}/dist/bundle.tar.gz ./
 RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 
-# Copy configuration files
+# Copy configuration files (supports comma-separated multiple configs)
+ARG CONFIG_FILE
+RUN echo "Will load config files: $CONFIG_FILE"
 COPY --chown=node:node app-config*.yaml ./
 
 # Copy default resources (all of them from build stage)
@@ -124,4 +145,6 @@ COPY --from=build --chown=node:node /app/default ./default
 EXPOSE 7007
 
 # Updated CMD to support multiple config files (comma-separated)
-CMD ["bash", "-c", "IFS=',' read -ra CONFIGS <<< \"${CONFIG_FILE}\"; CONFIG_ARGS=''; for config in \"${CONFIGS[@]}\"; do CONFIG_ARGS=\"${CONFIG_ARGS} --config ${config}\"; done; node packages/backend --config app-config.yaml ${CONFIG_ARGS}"]
+ARG BACKEND_PACKAGE
+ENV BACKEND_PACKAGE=${BACKEND_PACKAGE}
+CMD ["bash", "-c", "IFS=',' read -ra CONFIGS <<< \"${CONFIG_FILE}\"; CONFIG_ARGS=''; for config in \"${CONFIGS[@]}\"; do CONFIG_ARGS=\"${CONFIG_ARGS} --config ${config}\"; done; node packages/${BACKEND_PACKAGE} --config app-config.yaml ${CONFIG_ARGS}"]
