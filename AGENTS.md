@@ -12,6 +12,8 @@ This repository contains the **Codaqui Backstage Portal**, a developer portal bu
 - **Language**: TypeScript, React
 - **Package Manager**: Yarn (Berry/v4)
 - **Container Runtime**: Podman/Docker
+ - **Container Runtime**: Podman/Docker (local)
+ - **Production Platform**: Kubernetes (in development)
 - **Node Version**: 22+ (managed via nvm)
 - **Repository**: https://github.com/codaqui/backstage
 - **Organization**: Codaqui (CNPJ 44.593.429/0001-05)
@@ -312,128 +314,165 @@ backend:
 
 ### API Gateway Architecture
 
-The portal uses **NGINX as API Gateway** in Docker/production to hide internal backend architecture.
+The portal uses **NGINX as API Gateway** in production (Ingress/NGINX) to hide internal backend architecture.
 
-#### 🔐 Production (Docker) - NGINX Gateway
+#### 🔐 Production - Kubernetes (Recommended)
+
+Production will be deployed to Kubernetes. The staging/prod setup uses an API Gateway (Ingress/NGINX) to route traffic to internal services and terminate TLS. This setup keeps parity with Docker Compose routing while leveraging Kubernetes features such as service discovery, rolling updates, autoscaling and centralized secrets.
 
 ```
+Browser -> Ingress / Load Balancer -> Ingress Controller / NGINX -> Backends (ClusterIP Services)
+┌────────────────────────────────────────┐
+│   Browser (https://portal.codaqui.dev) │
+└──────────────┬─────────────────────────┘
+               │
+               ▼
+    ┌────────────────────────────────┐
+    │ Ingress Controller / NGINX     │
+    │ - TLS termination               │
+    │ - Reverse proxy / routing       │
+    │ - Routes /api/catalog -> svc:7008
+    │ - Routes /api/* -> svc:7007     │
+    └──────────────┬─────────────────┘
+                   │
+            ┌──────▼──────┐   ┌──────▼──────┐
+            │ backend-main│   │ backend-catalog│
+            │ Deployment  │   │ Deployment    │
+            │ svc:7007    │   │ svc:7008      │
+            └─────────────┘   └───────────────┘
+```
+
+**Kubernetes specifics:**
+- Store secrets in `Secret` resources and bind them via `envFrom: secretRef` to deployments.
+- Use `ConfigMap` for non-sensitive configuration (app-config.production).
+- Set resource requests/limits for each deployment to avoid OOMKills and overcommit.
+- Use `HorizontalPodAutoscaler` for `backend-main` and `frontend` if needed.
+- Use `NetworkPolicy` to restrict internal communication between services where needed.
+- Add `Readiness` and `Liveness` probes for health checks (e.g. `/healthcheck`).
+
+**K8s Manifest Example (high-level):**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-main
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-main
+  template:
+    metadata:
+      labels:
+        app: backend-main
+    spec:
+      containers:
+        - name: backend-main
+          image: codaqui/backstage-backend:latest
+          envFrom:
+            - secretRef: { name: backstage-secrets }
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 7007
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 7007
+```
+
+**Ingress (example):**
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backstage-ingress
+spec:
+  rules:
+    - host: portal.codaqui.dev
+      http:
+        paths:
+          - path: /api/catalog
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-catalog
+                port:
+                  number: 7008
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-main
+                port:
+                  number: 7007
+```
+
+**Benefits of Kubernetes:**
+- ✅ Automatic scaling & rolling deploys  
+- ✅ Centralized secrets & config  
+- ✅ Observability, metrics and healthchecks  
+- ✅ Better security & networking primitives (NetworkPolicy)
+
+**Testing in Kubernetes (local):**
+- Use `kind` or `minikube` to create a local cluster and test manifests.
+- Example commands:
+```bash
+# Create a kind cluster
+kind create cluster --name codaqui
+
+# Load images built locally (if using kind)
+kind load docker-image codaqui/backstage-backend:latest --name codaqui
+
+# Apply manifests
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/deployments.yaml
+kubectl apply -f k8s/services.yaml
+kubectl apply -f k8s/ingress.yaml
+
+# Port-forwarding for quick tests
+kubectl port-forward svc/backend-main 7007:7007 -n codaqui
+kubectl port-forward svc/backend-catalog 7008:7008 -n codaqui
+```
+
+**Notes:**
+- We are currently converging production deployment towards Kubernetes; use Docker Compose for local dev and `k8s` manifests under `docker/`/`k8s/` (or `deploy/`) for production deployment testing. 
+
+#### 💻 Development (Local) - Docker/Podman Compose (Recommended)
+
+This project uses a container-first approach for local development. We recommend using Podman or Docker Compose to run the full stack locally. Compose ensures the environment closely mirrors production and keeps local development consistent across machines.
+
+```
+# Browser → NGINX (frontend) → Backends
 ┌─────────────────────────────────────┐
 │   Browser (localhost:3000)          │
 │   All requests: /api/*              │
 └──────────────┬──────────────────────┘
                │
-               │ Single entry point
-               │
-┌──────────────▼──────────────────────┐
-│   NGINX (Frontend Container)        │
-│   - Serves static files             │
-│   - Acts as API Gateway             │
-│   - Routes /api/catalog/* → :7008   │
-│   - Routes /api/* → :7007           │
-└───────┬──────────────────┬───────────┘
-        │                  │
-        │ (interno)        │ (interno)
-        │                  │
- ┌──────▼──────┐    ┌──────▼──────┐
- │ Backend     │    │ Backend     │
- │ Catalog     │    │ Main        │
- │ :7008       │◄───│ :7007       │
- │ (interno)   │    │ (interno)   │
- │             │    │             │
- │ • Catalog   │    │ • Auth      │
- │ • GitHub    │    │ • Scaffolder│
- │ • Org Data  │    │ • TechDocs  │
- └─────────────┘    └─────┬───────┘
-                          │
-                    ┌─────▼───────┐
-                    │ PostgreSQL  │
-                    │ (Port 5432) │
-                    └─────────────┘
-
-Discovery Service (in both backends)
-┌──────────────────────┐
-│ Plugin → Service URL │
-├──────────────────────┤
-│ catalog   → :7008    │
-│ auth      → :7007    │
-│ scaffolder→ :7007    │
-│ search    → :7007    │
-└──────────────────────┘
+               ▼
+       ┌────────────────────┐
+       │ NGINX (frontend)    │
+       │ Routes /api/* → :7007│
+       │ Routes /api/catalog → :7008│
+       └─────┬─────────┬──────┘
+             │         │
+             │         │
+       ┌─────▼────┐┌───▼────┐
+       │ backend  ││ backend│
+       │ main :7007││ catalog:7008│
+       └──────────┘└────────┘
 ```
 
 **Configuration Files:**
-- `docker/default.conf.template` - NGINX routing rules
-- `app-config.frontend.yaml` - Frontend uses NGINX proxy
-  ```yaml
-  backend:
-    baseUrl: http://localhost:3000  # Frontend → NGINX → Backends
-  ```
+- `docker-compose.yml` - Compose file that brings up frontend (NGINX), `backend-main`, and `backend-catalog` with the right environment and `app-config` settings.
+- `app-config.docker.yaml` - Docker-specific config used by both backends via Compose
 
-**Benefits:**
-✅ Client doesn't know about internal architecture  
-✅ Security: Internal ports (7007, 7008) not exposed  
-✅ Flexibility: Can reorganize backends without client changes  
-✅ SSL/TLS termination at NGINX  
-✅ Rate limiting and caching  
-
-#### 💻 Development (Local) - Backend Main as Gateway
-
-```
-┌─────────────────────────────────────┐
-│   Browser (localhost:3000)          │
-│   Requests: /api/*                  │
-└──────────────┬──────────────────────┘
-               │
-               │ Direct connection
-               │
-        ┌──────▼──────┐
-        │ Backend     │
-        │ Main        │
-        │ :7007       │
-        │ (exposed)   │
-        │             │
-        │ Proxy:      │
-        │ /api/catalog│
-        │    ↓        │
-        └─────┬───────┘
-              │
-              │ Internal proxy
-              │
-       ┌──────▼──────┐
-       │ Backend     │
-       │ Catalog     │
-       │ :7008       │
-       │ (exposed)   │
-       └─────────────┘
-```
-
-**Configuration Files:**
-- `app-config.yaml` - Base config
-  ```yaml
-  backend:
-    baseUrl: http://localhost:7007  # Frontend → Backend Main
-  ```
-- `app-config.main.yaml` - Backend Main config (no proxy needed)
-  ```yaml
-  backend:
-    cors:
-      origin:
-        - http://backend-catalog:7008  # Docker service name
-        - http://localhost:7008         # Local fallback
-        - http://localhost:3000         # NGINX origin
-  ```
-
-**Why not NGINX locally?**
-❌ Extra complexity for development  
-❌ Requires container rebuild for changes  
-❌ Makes debugging harder  
-❌ Hot reload doesn't work well  
-
-**Benefits of local mode:**
-✅ Fast development (hot reload)  
-✅ Direct backend debugging  
-✅ Clear logs without intermediaries  
-✅ No container rebuild needed  
+**Why prefer Compose locally?**
+- ✅ Mirrors production (containerized networking, service names)  
+- ✅ Simpler developer onboarding (a single `podman/docker compose up`)  
+- ✅ Avoids having to manage multiple terminals and service discovery manually  
+- ✅ Works well with the NGINX gateway to test integrated flows
 
 #### Configuration Files Summary
 
@@ -447,43 +486,27 @@ Discovery Service (in both backends)
 | `docker/inject-config.sh` | Runtime config (no internal URLs) | Docker |
 | `docker/inject-config.sh` | Runtime config (no internal URLs) | Docker |
 
-#### Security Comparison
-
-| Aspect | Docker (NGINX) | Local Dev |
-|--------|----------------|-----------|
-| **Exposed Ports** | Only 3000 | 3000, 7007, 7008 |
-| **Architecture Visibility** | Hidden | Visible |
-| **Internal URLs** | Never exposed | Exposed on localhost |
-| **Production Ready** | ✅ Yes | ❌ No |
-| **Development Speed** | ⚠️ Slow (rebuild) | ✅ Fast (hot reload) |
-
 ### Running Backends
 
-**Development (local):**
+**Local Development (recommended - Docker/Podman Compose):**
+Use Podman/Docker Compose for a near-production environment that mirrors real service discovery and the NGINX gateway.
+
 ```bash
-# Terminal 1: Backend Catalog
-yarn workspace backend-catalog start --config ../../app-config.yaml --config ../../app-config.catalog.yaml
-
-# Terminal 2: Backend Main
-yarn workspace backend-main start --config ../../app-config.yaml --config ../../app-config.main.yaml
-
-# Terminal 3: Frontend
-yarn workspace app start
-
-# Or use npm scripts:
-yarn start:catalog  # Backend catalog
-yarn start:main     # Backend main
-yarn start          # Frontend
-```
-
-**Docker Compose:**
-```bash
-# Standard profile (both backends)
+# Start everything (frontend + backends)
 podman compose --profile standard up -d
 
-# View logs
+# Rebuild and start
+podman compose --profile standard up --build
+
+# Stop
+podman compose down
+```
+
+**View logs (compose)**
+```bash
 podman compose logs -f backend-catalog
 podman compose logs -f backend-main
+podman compose logs -f frontend
 ```
 
 ### Docker Build Strategy
@@ -1453,34 +1476,6 @@ Current policy (can be customized):
 - **Authenticated users**: Full read access
 - **Resource owners**: Can modify/delete their resources
 
-## 📊 Project Metrics & Status
-
-### Current State (as of 2025-11-13)
-
-- **Status**: Beta
-- **Backstage Version**: Latest (check package.json)
-- **Node Version**: 22+
-- **TypeScript**: Strict mode enabled
-- **Linting**: ESLint + Prettier
-- **Container**: Podman Compose (Docker compatible)
-
-### Recent Improvements
-
-1. **Multi-Backend Architecture**: Split into backend-catalog (7008) and backend-main (7007)
-2. **Discovery Service**: Custom service for inter-backend communication
-3. **GitHub App Integration**: Environment variables only, no credential files
-4. **Dockerfile Optimization**: Single Dockerfile.backend with BACKEND_PACKAGE arg
-5. **Docker Compose**: Support for both backends with proper service discovery
-6. **Theme Customization**: Codaqui green (#57B593) throughout
-7. **Logo Reorganization**: Moved to `assets/logos/` structure
-8. **Permission Policy**: Custom policy with guest support
-9. **GitHub Integration**: Automatic organization sync with transformers
-10. **Software Templates**: Starting template library
-11. **Architecture Documentation**: All technical docs consolidated in AGENTS.md
-12. **Kubernetes Integration**: Conditional K8s resource loading
-13. **Catalog Organization**: Separated common vs K8s resources
-14. **Multi-config Support**: CONFIG_FILE accepts comma-separated values
-
 ## 🚀 Deployment
 
 ### Local Development
@@ -1499,12 +1494,23 @@ yarn dev
 ### Production Build
 
 ```bash
-# Build frontend and backend
+# Build frontend and backend artifacts
 yarn build:all
 
-# Build Docker images
-podman build -f Dockerfile.frontend -t codaqui/backstage-frontend .
-podman build -f Dockerfile.backend -t codaqui/backstage-backend .
+# Build Docker images (these images are what we deploy to Kubernetes)
+podman build -f Dockerfile.frontend -t registry.example.com/codaqui/backstage-frontend:latest .
+podman build -f Dockerfile.backend -t registry.example.com/codaqui/backstage-backend:latest .
+
+# Push images to your registry
+podman push registry.example.com/codaqui/backstage-frontend:latest
+podman push registry.example.com/codaqui/backstage-backend:latest
+
+# Deploy to Kubernetes cluster (production/staging)
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/deployments.yaml
+kubectl apply -f k8s/services.yaml
+kubectl apply -f k8s/ingress.yaml
 ```
 
 ### Environment Configuration
@@ -1685,13 +1691,18 @@ Secondary: #B5B5B5  // Light Gray (dark mode)
 ### Key Commands
 
 ```bash
-# Local Development (backends separated)
+# Local Development (Docker/Podman Compose - recommended)
+podman compose --profile standard up -d         # Start all services (frontend + backends)
+podman compose --profile standard up --build    # Rebuild and start
+podman compose down                             # Stop all services
+
+# Alternative: Run workspaces separately (fast frontend iteration)
 yarn start:catalog      # Start backend-catalog (port 7008)
 yarn start:main         # Start backend-main (port 7007)
 yarn start              # Start frontend (port 3000)
 yarn dev                # Start all together
 
-# Build
+# Build (monorepo)
 yarn build:all          # Build all workspaces
 yarn tsc                # Check TypeScript
 yarn lint               # Run linter
@@ -1703,21 +1714,25 @@ yarn docker:build:catalog   # Build backend-catalog image
 yarn docker:build:main      # Build backend-main image
 yarn docker:build:all       # Build both backend images
 
-# Docker/Podman Compose
-podman compose --profile standard up -d         # Start all services
-podman compose --profile standard up --build    # Rebuild and start
-podman compose down                             # Stop all services
+# Kubernetes - local test (kind/minikube)
+kind create cluster --name codaqui
+kind load docker-image codaqui/backstage-backend:latest --name codaqui
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/deployments.yaml
+kubectl apply -f k8s/services.yaml
+kubectl apply -f k8s/ingress.yaml
 
-# Kubernetes testing mode
-export CODAQUI_TESTING_WITH_KUBERNETES=true
-COMPOSE_PROFILES=kubernetes,standard podman compose up --build
+# Port-forwarding for quick tests
+kubectl port-forward svc/backend-main 7007:7007 -n codaqui
+kubectl port-forward svc/backend-catalog 7008:7008 -n codaqui
 
-# Container logs
+# Container logs (compose)
 podman logs -f codaqui-portal-backend-catalog
 podman logs -f codaqui-portal-backend-main
 podman logs -f codaqui-portal-frontend
 
-# Access containers
+# Access containers (compose)
 podman exec -it codaqui-portal-backend-catalog bash
 podman exec -it codaqui-portal-backend-main bash
 
