@@ -67,48 +67,48 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
    > - K8s-specific configuration from `app-config.k8s.yaml`
    > 
    > **Architecture**: Multi-backend microservices with **Custom Discovery Service** (Kubernetes-ready):
-   > 
-   > ```
-   > ┌─────────────────────────────────────┐
-   > │   Browser (localhost:3000)          │
-   > └──────────────┬──────────────────────┘
-   >                │ All requests via NGINX
-   >                │ http://localhost:3000/api/*
-   >                │
-   > ┌──────────────▼──────────────────────┐
-   > │   NGINX (Frontend Container)        │
-   > │   - Serves static files             │
-   > │   - Acts as API Gateway             │
-   > │   - Routes /api/catalog/* → :7008   │
-   > │   - Routes /api/* → :7007           │
-   > └───────┬──────────────────┬───────────┘
-   >         │                  │
-   >  ┌──────▼──────┐    ┌──────▼──────┐
-   >  │ Backend     │    │ Backend     │
-   >  │ Catalog     │◄───│ Main        │
-   >  │ :7008       │    │ :7007       │
-   >  │ (internal)  │    │ (internal)  │
-   >  │             │    │             │
-   >  │ • Catalog   │    │ • Auth      │
-   >  │ • GitHub    │    │ • Scaffolder│
-   >  │ • Org Data  │    │ • TechDocs  │
-   >  └─────────────┘    └─────┬───────┘
-   >                           │
-   >                     ┌─────▼───────┐
-   >                     │ PostgreSQL  │
-   >                     │ (Port 5432) │
-   >                     └─────────────┘
-   > 
-   > Discovery Service (shared via @internal/backend-common)
-   > ┌──────────────────────┐
-   > │ Plugin → Service URL │
-   > ├──────────────────────┤
-   > │ catalog   → :7008    │
-   > │ auth      → :7007    │
-   > │ scaffolder→ :7007    │
-   > └──────────────────────┘
-   > ```
-   > 
+   
+   ```text
+    ┌─────────────────────────────────────┐
+    │   Browser (localhost:3000)          │
+    └──────────────┬──────────────────────┘
+                   │ All requests via NGINX
+                   │ http://localhost:3000/api/*
+                   │
+    ┌──────────────▼──────────────────────┐
+    │   NGINX (Frontend Container)        │
+    │   - Serves static files             │
+    │   - Acts as API Gateway             │
+    │   - Routes /api/catalog/* → :7008   │
+    │   - Routes /api/* → :7007           │
+    └───────┬──────────────────┬───────────┘
+            │                  │
+     ┌──────▼──────┐    ┌──────▼──────┐
+     │ Backend     │    │ Backend     │
+     │ Catalog     │◄───│ Main        │
+     │ :7008       │    │ :7007       │
+     │ (internal)  │    │ (internal)  │
+     │             │    │             │
+     │ • Catalog   │    │ • Auth      │
+     │ • GitHub    │    │ • Scaffolder│
+     │ • Org Data  │    │ • TechDocs  │
+     └─────────────┘    └─────┬───────┘
+                              │
+                        ┌─────▼───────┐
+                        │ PostgreSQL  │
+                        │ (Port 5432) │
+                        └─────────────┘
+    
+    Discovery Service (shared via @internal/backend-common)
+    ┌──────────────────────┐
+    │ Plugin → Service URL │
+    ├──────────────────────┤
+    │ catalog   → :7008    │
+    │ auth      → :7007    │
+    │ scaffolder→ :7007    │
+    └──────────────────────┘
+    ```
+    
    > **Key Features:**
    > - **Custom Discovery Service**: Direct backend-to-backend calls (zero HTTP proxy overhead)
    > - **Kubernetes Ready**: Uses service names (e.g., `backend-catalog.namespace.svc.cluster.local`)
