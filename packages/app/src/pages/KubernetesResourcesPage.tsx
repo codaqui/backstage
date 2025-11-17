@@ -302,7 +302,13 @@ const ResourcesTable = ({ resources, classes }: ResourcesTableProps) => {
   };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const parsed = Number.parseInt(event.target.value, 10);
+    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+      setRowsPerPage(parsed);
+    } else {
+      // fallback to default value
+      setRowsPerPage(10);
+    }
     setPage(0);
   };
 

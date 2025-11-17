@@ -3,6 +3,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Group
 metadata:
   name: guests
+  namespace: default
   description: Guest users group with limited access
 spec:
   type: team
@@ -15,6 +16,7 @@ apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
   name: guest
+  namespace: default
   description: Default guest user account with limited access
 spec:
   profile:

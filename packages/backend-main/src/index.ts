@@ -1,8 +1,10 @@
 import { createBackend } from '@backstage/backend-defaults';
 import { createBackendModule } from '@backstage/backend-plugin-api';
-// import { githubOrgEntityProviderTransformsExtensionPoint } from '@backstage/plugin-catalog-backend-module-github-org';
-// import { myTeamTransformer, myUserTransformer } from './transformers';
-import { runPeriodically } from './utils/runPeriodically';
+import { 
+  runPeriodically, 
+  permissionsPolicyExtension,
+  customDiscoveryServiceFactory 
+} from '@internal/backend-common';
 import { Duration } from 'luxon';
 import {
   ClusterDetails,
@@ -10,22 +12,11 @@ import {
   kubernetesClusterSupplierExtensionPoint,
 } from '@backstage/plugin-kubernetes-node';
 
-// GitHub Org Module - Uncomment to use custom transformers
-// const githubOrgModule = createBackendModule({
-//   pluginId: 'catalog',
-//   moduleId: 'github-org-extensions',
-//   register(env) {
-//     env.registerInit({
-//       deps: {
-//         githubOrg: githubOrgEntityProviderTransformsExtensionPoint,
-//       },
-//       async init({ githubOrg }) {
-//         githubOrg.setTeamTransformer(myTeamTransformer);
-//         githubOrg.setUserTransformer(myUserTransformer);
-//       },
-//     });
-//   },
-// });
+// Debug Environment Variables
+console.log('🔍 Backend Main - Environment Variables:');
+console.log(`   CATALOG_SERVICE_URL: ${process.env.CATALOG_SERVICE_URL}`);
+console.log(`   MAIN_SERVICE_URL: ${process.env.MAIN_SERVICE_URL}`);
+console.log(`   BACKEND_SECRET: ${process.env.BACKEND_SECRET ? '***' + process.env.BACKEND_SECRET.slice(-4) : 'NOT SET'}`);
 
 // Custom Kubernetes Clusters Supplier
 // https://backstage.io/docs/features/kubernetes/installation
@@ -52,6 +43,10 @@ export class CustomClustersSupplier implements KubernetesClustersSupplier {
 }
 
 const backend = createBackend();
+
+// Replace default Discovery Service with custom implementation
+// This enables direct service-to-service communication (K8s ready)
+backend.add(customDiscoveryServiceFactory);
 
 // Example of replacing the default Kubernetes cluster discovery and service locator
 // See https://backstage.io/docs/features/kubernetes/installation#extending-the-kubernetes-backend
@@ -106,27 +101,11 @@ backend.add(import('@backstage/plugin-auth-backend-module-github-provider'));
 backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
 // See https://backstage.io/docs/auth/guest/provider
 
-// catalog plugin
-backend.add(import('@backstage/plugin-catalog-backend'));
-backend.add(
-  import('@backstage/plugin-catalog-backend-module-scaffolder-entity-model'),
-);
-
-// https://backstage.io/docs/integrations/github/discovery
-backend.add(import('@backstage/plugin-catalog-backend-module-github'));
-
-// https://backstage.io/docs/integrations/github/org
-backend.add(import('@backstage/plugin-catalog-backend-module-github-org'));
-// backend.add(githubOrgModule);
-
-// See https://backstage.io/docs/features/software-catalog/configuration#subscribing-to-catalog-errors
-backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
-
 // permission plugin
 backend.add(import('@backstage/plugin-permission-backend'));
 
 // Improve Permission System - https://backstage.io/docs/permissions/getting-started
-backend.add(import('./extensions/permissionsPolicyExtension'));
+backend.add(permissionsPolicyExtension);
 
 // See https://backstage.io/docs/permissions/getting-started for how to create your own permission policy
 // backend.add(

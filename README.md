@@ -2,6 +2,8 @@
 
 Welcome to the Codaqui Backstage Portal! This is a developer portal built with [Backstage](https://backstage.io) that provides a unified interface for managing software components, APIs, and documentation.
 
+> 📖 **For Technical Documentation**: See [AGENTS.md](./AGENTS.md) for complete architecture details, multi-backend setup, AI agent instructions, and development guidelines.
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -46,10 +48,7 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 
    **Standard mode (without Kubernetes resources):**
    ```bash
-   COMPOSE_PROFILES=standard \
-   CODAQUI_TESTING_WITH_KUBERNETES=false \
-   CONFIG_FILE=app-config.docker.yaml \
-   podman compose up --build --force-recreate
+   podman compose --profile standard up --build --force-recreate
    ```
 
    **Kubernetes testing mode (includes K8s resources):**
@@ -57,29 +56,67 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
    # Verify ./default/k8s/deployment.yaml is configured correctly for your K8s cluster
    kubectl apply -f ./default/k8s/deployment.yaml
 
-   # Turn on containers for K8s testing
-   COMPOSE_PROFILES=kubernetes,standard \
-   CODAQUI_TESTING_WITH_KUBERNETES=true \
-   CONFIG_FILE=app-config.docker.yaml,app-config.k8s.yaml \
-   podman compose up --build --force-recreate
+   # Turn on containers for K8s testing (enables both profiles)
+   export CODAQUI_TESTING_WITH_KUBERNETES=true
+   podman compose --profile kubernetes --profile standard up --build --force-recreate
    ```
 
    > **Note**: The `CODAQUI_TESTING_WITH_KUBERNETES` variable controls:
    > - Whether Kubernetes resources (`default/k8s/*.yaml`) are loaded in the catalog
-   > - Activation of kubectl-proxy service
+   > - Activation of kubectl-proxy service (port 8001)
    > - K8s-specific configuration from `app-config.k8s.yaml`
-
-5. **Access the portal**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:7007
-   - **If K8s testing enabled**: kubectl proxy at http://localhost:8001
-
-## 🔒 Security Notes
-
-- **NEVER commit** `.env`, `.env.only-config`, `.env.database`, or `*-credentials.yaml` files
-- All secrets must be stored in environment variables
-- Rotate credentials regularly
-- Use GitHub Secrets for CI/CD pipelines
+   > 
+   > **Architecture**: Multi-backend microservices with **Custom Discovery Service** (Kubernetes-ready):
+   
+   ```text
+    ┌─────────────────────────────────────┐
+    │   Browser (localhost:3000)          │
+    └──────────────┬──────────────────────┘
+                   │ All requests via NGINX
+                   │ http://localhost:3000/api/*
+                   │
+    ┌──────────────▼──────────────────────┐
+    │   NGINX (Frontend Container)        │
+    │   - Serves static files             │
+    │   - Acts as API Gateway             │
+    │   - Routes /api/catalog/* → :7008   │
+    │   - Routes /api/* → :7007           │
+    └───────┬──────────────────┬───────────┘
+            │                  │
+     ┌──────▼──────┐    ┌──────▼──────┐
+     │ Backend     │    │ Backend     │
+     │ Catalog     │◄───│ Main        │
+     │ :7008       │    │ :7007       │
+     │ (internal)  │    │ (internal)  │
+     │             │    │             │
+     │ • Catalog   │    │ • Auth      │
+     │ • GitHub    │    │ • Scaffolder│
+     │ • Org Data  │    │ • TechDocs  │
+     └─────────────┘    └─────┬───────┘
+                              │
+                        ┌─────▼───────┐
+                        │ PostgreSQL  │
+                        │ (Port 5432) │
+                        └─────────────┘
+    
+    Discovery Service (shared via @internal/backend-common)
+    ┌──────────────────────┐
+    │ Plugin → Service URL │
+    ├──────────────────────┤
+    │ catalog   → :7008    │
+    │ auth      → :7007    │
+    │ scaffolder→ :7007    │
+    └──────────────────────┘
+    ```
+    
+   > **Key Features:**
+   > - **Custom Discovery Service**: Direct backend-to-backend calls (zero HTTP proxy overhead)
+   > - **Kubernetes Ready**: Uses service names (e.g., `backend-catalog.namespace.svc.cluster.local`)
+   > - **Shared Code**: `@internal/backend-common` for reusable logic (RBAC, discovery, utilities)
+   > - **NGINX Gateway**: Exposes only port 3000 externally
+   > - **Scalable**: Add new backends easily - just import from `@internal/backend-common`
+   > 
+   > See [AGENTS.md](./AGENTS.md) for complete architecture and development guidelines
 
 ## 📚 Documentation
 

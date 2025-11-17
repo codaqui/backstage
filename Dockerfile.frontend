@@ -37,9 +37,11 @@ RUN corepack enable
 # Prepare yarn from the .yarn/releases directory
 RUN corepack prepare yarn@4.4.1 --activate
 
-# Copy workspace configuration
+# Copy workspace configuration (ALL workspaces needed for yarn.lock resolution)
 COPY packages/app/package.json ./packages/app/package.json
-COPY packages/backend/package.json ./packages/backend/package.json
+COPY packages/backend-common/package.json ./packages/backend-common/package.json
+COPY packages/backend-catalog/package.json ./packages/backend-catalog/package.json
+COPY packages/backend-main/package.json ./packages/backend-main/package.json
 
 # Install dependencies (this will install backstage-cli and other dev dependencies)
 RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked \
@@ -57,12 +59,8 @@ RUN if [ "${ENABLE_K8S}" != "true" ]; then \
     fi
 
 # Build the frontend with production config (support multiple config files)
-RUN bash -c 'IFS="," read -ra CONFIGS <<< "${CONFIG_FILE}"; \
-    CONFIG_ARGS=""; \
-    for config in "${CONFIGS[@]}"; do \
-        CONFIG_ARGS="${CONFIG_ARGS} --config ../../${config}"; \
-    done; \
-    yarn workspace app build --config ../../app-config.yaml ${CONFIG_ARGS}'
+# Use app-config.frontend.yaml to ensure frontend uses nginx proxy
+RUN yarn workspace app build --config ../../app-config.yaml --config ../../app-config.frontend.yaml
 
 # Stage 2: Serve with nginx
 FROM public.ecr.aws/nginx/nginx:mainline-alpine
