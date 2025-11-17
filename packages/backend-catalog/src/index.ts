@@ -11,7 +11,7 @@ import {
 console.log('🔍 Backend Catalog - Environment Variables:');
 console.log(`   CATALOG_SERVICE_URL: ${process.env.CATALOG_SERVICE_URL}`);
 console.log(`   MAIN_SERVICE_URL: ${process.env.MAIN_SERVICE_URL}`);
-console.log(`   BACKEND_SECRET: ${process.env.BACKEND_SECRET ? '***' + process.env.BACKEND_SECRET.slice(-4) : 'NOT SET'}`);
+console.log(`   BACKEND_SECRET: ${process.env.BACKEND_SECRET ? '***[SET]' : 'NOT SET'}`);
 
 // GitHub Org Module - Custom transformers for users and teams
 const githubOrgModule = createBackendModule({
