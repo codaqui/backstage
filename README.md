@@ -118,21 +118,6 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
    > 
    > See [AGENTS.md](./AGENTS.md) for complete architecture and development guidelines
 
-5. **Access the portal**
-   - Frontend & APIs: http://localhost:3000
-     - Frontend UI: http://localhost:3000
-     - Catalog API: http://localhost:3000/api/catalog/entities
-     - Main API: http://localhost:3000/api/
-   - **Note**: Ports 7007 and 7008 are internal only (not exposed outside Docker)
-   - **If K8s testing enabled**: kubectl proxy at http://localhost:8001
-
-## 🔒 Security Notes
-
-- **NEVER commit** `.env`, `.env.only-config`, `.env.database`, or `*-credentials.yaml` files
-- All secrets must be stored in environment variables
-- Rotate credentials regularly
-- Use GitHub Secrets for CI/CD pipelines
-
 ## 📚 Documentation
 
 - [Backstage Documentation](https://backstage.io/docs)
