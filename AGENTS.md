@@ -484,7 +484,6 @@ This project uses a container-first approach for local development. We recommend
 | `app-config.catalog.yaml` | Backend Catalog config (CORS, auth) | Both |
 | `docker/default.conf.template` | NGINX routing rules | Docker |
 | `docker/inject-config.sh` | Runtime config (no internal URLs) | Docker |
-| `docker/inject-config.sh` | Runtime config (no internal URLs) | Docker |
 
 ### Running Backends
 
