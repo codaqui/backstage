@@ -1,7 +1,7 @@
 import { PropsWithChildren } from 'react';
 import { makeStyles, Typography, Box } from '@material-ui/core';
 import HomeIcon from '@material-ui/icons/Home';
-// News Icon
+// Announcements Icon
 import Announcement from '@material-ui/icons/Announcement';
 import ExtensionIcon from '@material-ui/icons/Extension';
 import LibraryBooks from '@material-ui/icons/LibraryBooks';
