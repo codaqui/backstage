@@ -17,56 +17,87 @@ import {
 } from '@backstage/plugin-catalog-backend/alpha';
 
 // ==============================================================================
-// 🎯 CENTRALIZED GROUP PERMISSIONS CONFIGURATION
+// 🎯 TYPE-SAFE CENTRALIZED GROUP PERMISSIONS CONFIGURATION
 // ==============================================================================
 
 /**
- * Special groups configuration and their permissions
+ * Type-safe configuration that ensures every group in SPECIAL_GROUPS
+ * has corresponding permissions defined in GROUP_PERMISSIONS
+ */
+
+// First, define the base group configuration
+const SPECIAL_GROUPS = {
+  GUESTS: ['user:default/guest', 'group:default/guests'],
+  CONSELHO: ['group:default/conselho'],
+  // ADMINS: ['group:default/admins'],
+  // MODERATORS: ['group:default/moderators'],
+} as const;
+
+// Create a type that extracts group names from SPECIAL_GROUPS
+type GroupNames = {
+  [K in keyof typeof SPECIAL_GROUPS]: Lowercase<K>
+}[keyof typeof SPECIAL_GROUPS];
+
+// Type-safe GROUP_PERMISSIONS that must include all groups from SPECIAL_GROUPS
+type GroupPermissions = {
+  [K in GroupNames]: readonly string[];
+};
+
+// Now define permissions with compile-time type safety
+const GROUP_PERMISSIONS: GroupPermissions = {
+  // ✅ Type-safe: 'conselho' must exist because CONSELHO is in SPECIAL_GROUPS
+  conselho: [
+    'announcement.entity.*',      // All announcement operations
+    // Or use specific permissions:
+    // 'announcement.entity.create',
+    // 'announcement.entity.update', 
+    // 'announcement.entity.delete',
+    // 'announcement.entity.read',
+  ],
+  
+  // ✅ Type-safe: 'guests' must exist because GUESTS is in SPECIAL_GROUPS
+  guests: [
+    '*.read',  // Read-only access for guest group (fallback)
+  ],
+  
+  // Example: When you uncomment groups above, you MUST add them here:
+  // admins: [
+  //   'catalog.entity.*',           // All catalog operations
+  //   'scaffolder.*',               // All scaffolder operations
+  //   '*.read',                     // All read operations
+  // ],
+  // moderators: [
+  //   'catalog.entity.update',
+  //   'techdocs.*',                 // All TechDocs operations
+  //   '*.read',                     // All read operations
+  // ],
+} as const;
+
+/**
+ * Complete type-safe permission configuration
  * 
- * 📝 How to add new groups and permissions:
+ * 🛡️ Type Safety Benefits:
+ * - Compile-time error if group exists in SPECIAL_GROUPS but not in GROUP_PERMISSIONS
+ * - Prevents silent runtime failures
+ * - IntelliSense autocomplete for group names
+ * - Refactoring safety when renaming groups
+ * 
+ * 📝 How to add new groups safely:
  * 1. Add the group to SPECIAL_GROUPS
- * 2. Define specific permissions in GROUP_PERMISSIONS
- * 3. The system will automatically apply the rules
+ * 2. TypeScript will error until you add corresponding entry to GROUP_PERMISSIONS
+ * 3. The system ensures consistency at compile time
  * 
  * 🌟 Wildcard Support:
  * - Use "*.read" to grant all read permissions
  * - Use "announcement.*" to grant all announcement permissions
  * - Use "catalog.entity.*" for all catalog entity operations
- * - Wildcards are processed before exact matches
  */
 const PERMISSION_CONFIG = {
-  // 👥 Special groups with custom permissions
-  SPECIAL_GROUPS: {
-    GUESTS: ['user:default/guest', 'group:default/guests'],
-    CONSELHO: ['group:default/conselho'],
-    // ADMINS: ['group:default/admins'],
-    // MODERATORS: ['group:default/moderators'],
-  },
-
-  // 🎯 Specific permissions by group (supports wildcards)
-  GROUP_PERMISSIONS: {
-    // Conselho: Can manage announcements
-    conselho: [
-      'announcement.entity.*',      // All announcement operations
-      // Or use specific permissions:
-      // 'announcement.entity.create',
-      // 'announcement.entity.update', 
-      // 'announcement.entity.delete',
-      // 'announcement.entity.read',
-    ],
-    
-    // Example of other groups (uncomment and configure as needed)
-    // admins: [
-    //   'catalog.entity.*',           // All catalog operations
-    //   'scaffolder.*',               // All scaffolder operations
-    //   '*.read',                     // All read operations
-    // ],
-    // moderators: [
-    //   'catalog.entity.update',
-    //   'techdocs.*',                 // All TechDocs operations
-    //   '*.read',                     // All read operations
-    // ],
-  },
+  // 👥 Special groups with custom permissions  
+  SPECIAL_GROUPS,
+  
+  // 🎯 Type-safe permissions by group (supports wildcards)
+  GROUP_PERMISSIONS,
 
   // 📋 Base permissions always allowed for authenticated users
   AUTHENTICATED_BASE_PERMISSIONS: [
@@ -122,18 +153,37 @@ function isUserInGroup(userEntityRefs: string[], groupRefs: readonly string[]): 
 }
 
 /**
- * Gets all user-specific permissions based on groups (supports wildcards)
+ * Gets all user-specific permissions based on groups (type-safe with wildcards)
+ * 
+ * 🛡️ Type Safety: No more unsafe type assertions!
+ * - Uses proper typing to ensure group exists in permissions
+ * - Validates group permissions exist before access
+ * - Provides helpful error logging for misconfiguration
  */
-function getUserSpecificPermissions(userEntityRefs: string[]): string[] {
+function getUserSpecificPermissions(userEntityRefs: string[], logger?: LoggerService): string[] {
   const permissions: string[] = [];
 
-  // Check each group and add their permissions
+  // Check each group and add their permissions (type-safe)
   Object.entries(PERMISSION_CONFIG.SPECIAL_GROUPS).forEach(([groupKey, groupRefs]) => {
     if (isUserInGroup(userEntityRefs, groupRefs)) {
-      const groupName = groupKey.toLowerCase();
-      const groupPermissions = PERMISSION_CONFIG.GROUP_PERMISSIONS[groupName as keyof typeof PERMISSION_CONFIG.GROUP_PERMISSIONS];
+      const groupName = groupKey.toLowerCase() as GroupNames;
+      
+      // Type-safe access - groupName is guaranteed to exist in GROUP_PERMISSIONS
+      const groupPermissions = PERMISSION_CONFIG.GROUP_PERMISSIONS[groupName];
+      
+      // Additional runtime validation for extra safety
       if (groupPermissions) {
         permissions.push(...groupPermissions);
+        logger?.debug(`🎯 Group permissions added for '${groupName}'`, {
+          group: groupName,
+          permissions: [...groupPermissions], // Convert readonly array to regular array for logging
+        });
+      } else {
+        // This should never happen with our type-safe setup, but good to log
+        logger?.error(`❌ Configuration error: Group '${groupName}' exists in SPECIAL_GROUPS but has no permissions defined`, {
+          availableGroups: Object.keys(PERMISSION_CONFIG.GROUP_PERMISSIONS),
+          missingGroup: groupName,
+        });
       }
     }
   });
@@ -220,7 +270,7 @@ class CustomPermissionPolicy implements PermissionPolicy {
     }
 
     // 🎯 CHECK GROUP-SPECIFIC PERMISSIONS (with wildcard support)
-    const userSpecificPermissions = getUserSpecificPermissions(userEntityRefs);
+    const userSpecificPermissions = getUserSpecificPermissions(userEntityRefs, this.logger);
     
     if (hasPermissionWithWildcards(permissionName, userSpecificPermissions)) {
       this.logger.debug('✅ ALLOW: Group-specific permission granted (wildcard match)', {
@@ -374,3 +424,6 @@ export {
   hasPermissionWithWildcards,
   isReadPermission,
 };
+
+// Export types for external use
+export type { GroupNames, GroupPermissions };
