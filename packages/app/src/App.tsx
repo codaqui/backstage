@@ -28,6 +28,7 @@ import { HomePage } from './components/home';
 import { WhatsAppGroupsPage, LearningResourcesPage, SocialResourcesPage, KubernetesResourcesPage } from './pages';
 import { codaquiLightTheme, codaquiDarkTheme } from './theme/codaquiTheme';
 import { UnifiedThemeProvider } from '@backstage/theme';
+import { AnnouncementsPage } from '@backstage-community/plugin-announcements';
 
 import {
   AlertDisplay,
@@ -138,6 +139,7 @@ const routes = (
         </RequirePermission>
       }
     />
+    <Route path="/announcements" element={<AnnouncementsPage />} />
     <Route path="/search" element={<SearchPage />}>
       {searchPage}
     </Route>

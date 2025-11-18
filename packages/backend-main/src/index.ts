@@ -131,5 +131,9 @@ backend.add(import('@backstage/plugin-kubernetes-backend'));
 backend.add(import('@backstage/plugin-notifications-backend'));
 backend.add(import('@backstage/plugin-signals-backend'));
 
+// announcements
+// https://github.com/backstage/community-plugins/tree/main/workspaces/announcements/
+backend.add(import('@backstage-community/plugin-announcements-backend'));
+
 // Let's go! Start!
 backend.start();

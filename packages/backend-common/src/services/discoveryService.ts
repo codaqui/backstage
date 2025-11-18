@@ -32,6 +32,11 @@ class CustomDiscoveryService implements DiscoveryService {
       ['notifications', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
       ['signals', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
       ['events', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+
+      // Announcements plugin (backend-announcements)
+      ['announcements', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['categories', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
+      ['tags', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
     ]);
     
     console.log('✅ Custom Discovery Service initialized:');

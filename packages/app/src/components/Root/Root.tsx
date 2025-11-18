@@ -1,6 +1,8 @@
 import { PropsWithChildren } from 'react';
 import { makeStyles, Typography, Box } from '@material-ui/core';
 import HomeIcon from '@material-ui/icons/Home';
+// News Icon
+import Announcement from '@material-ui/icons/Announcement';
 import ExtensionIcon from '@material-ui/icons/Extension';
 import LibraryBooks from '@material-ui/icons/LibraryBooks';
 import CreateComponentIcon from '@material-ui/icons/AddCircleOutline';
@@ -124,6 +126,7 @@ export const Root = ({ children }: PropsWithChildren<{}>) => (
         {/* Global nav, not org-specific */}
         <SidebarItem icon={HomeIcon} to="/" text="Início" />
         <SidebarItem icon={HomeIcon} to="catalog" text="Catálogo" />
+        <SidebarItem icon={Announcement} to="announcements" text="Notícias" />
         <SidebarDivider />
         <SidebarItem icon={WhatsAppIcon} to="whatsapp-groups" text="WhatsApp" />
         <SidebarItem icon={SchoolIcon} to="learning-resources" text="Aprendizado" />
