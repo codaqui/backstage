@@ -203,7 +203,7 @@ function hasPermissionWithWildcards(permission: string, grantedPermissions: stri
  */
 function isReadPermission(permissionName: string, allowedReadPermissions: readonly string[]): boolean {
   return permissionName.includes('.read') || 
-         (allowedReadPermissions as readonly string[]).some(allowed => 
+         allowedReadPermissions.some(allowed => 
            matchesWildcard(permissionName, allowed)
          );
 }
