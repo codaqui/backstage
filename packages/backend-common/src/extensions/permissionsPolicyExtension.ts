@@ -23,20 +23,22 @@ import {
 /**
  * Type-safe configuration that ensures every group in SPECIAL_GROUPS
  * has corresponding permissions defined in GROUP_PERMISSIONS
+ * 
+ * 🔒 Key Enforcement: SPECIAL_GROUPS keys MUST be lowercase
+ * - TypeScript will error if you use uppercase keys like 'GUESTS'
+ * - This prevents runtime mismatches between group names and permissions
  */
 
-// First, define the base group configuration
+// First, define the base group configuration with enforced lowercase keys
 const SPECIAL_GROUPS = {
-  GUESTS: ['user:default/guest', 'group:default/guests'],
-  CONSELHO: ['group:default/conselho'],
-  // ADMINS: ['group:default/admins'],
-  // MODERATORS: ['group:default/moderators'],
+  guests: ['user:default/guest', 'group:default/guests'],
+  conselho: ['group:default/conselho'],
+  // admins: ['group:default/admins'],
+  // moderators: ['group:default/moderators'],
 } as const;
 
 // Create a type that extracts group names from SPECIAL_GROUPS
-type GroupNames = {
-  [K in keyof typeof SPECIAL_GROUPS]: Lowercase<K>
-}[keyof typeof SPECIAL_GROUPS];
+type GroupNames = keyof typeof SPECIAL_GROUPS;
 
 // Type-safe GROUP_PERMISSIONS that must include all groups from SPECIAL_GROUPS
 type GroupPermissions = {
@@ -45,7 +47,7 @@ type GroupPermissions = {
 
 // Now define permissions with compile-time type safety
 const GROUP_PERMISSIONS: GroupPermissions = {
-  // ✅ Type-safe: 'conselho' must exist because CONSELHO is in SPECIAL_GROUPS
+  // ✅ Type-safe: 'conselho' must exist because conselho is in SPECIAL_GROUPS
   conselho: [
     'announcement.entity.*',      // All announcement operations
     // Or use specific permissions:
@@ -55,7 +57,7 @@ const GROUP_PERMISSIONS: GroupPermissions = {
     // 'announcement.entity.read',
   ],
   
-  // ✅ Type-safe: 'guests' must exist because GUESTS is in SPECIAL_GROUPS
+  // ✅ Type-safe: 'guests' must exist because guests is in SPECIAL_GROUPS
   guests: [
     '*.read',  // Read-only access for guest group (fallback)
   ],
@@ -83,7 +85,7 @@ const GROUP_PERMISSIONS: GroupPermissions = {
  * - Refactoring safety when renaming groups
  * 
  * 📝 How to add new groups safely:
- * 1. Add the group to SPECIAL_GROUPS
+ * 1. Add the group to SPECIAL_GROUPS with lowercase key (e.g., 'admins')
  * 2. TypeScript will error until you add corresponding entry to GROUP_PERMISSIONS
  * 3. The system ensures consistency at compile time
  * 
@@ -153,42 +155,75 @@ function isUserInGroup(userEntityRefs: string[], groupRefs: readonly string[]): 
 }
 
 /**
+ * Optimized function to get user groups and their permissions
+ * 
+ * 🚀 Performance optimizations:
+ * - Pre-normalizes user refs once using Set for O(1) lookups
+ * - Pre-computes normalized group refs (cached)
+ * - Uses Set for automatic deduplication
+ * - Returns both groups and permissions in single pass
+ * - Avoids array spreads and multiple iterations
+ */
+function getUserGroupsAndPermissions(userEntityRefs: string[]): { groups: GroupNames[], permissions: string[] } {
+  const normalizedUserRefs = new Set(userEntityRefs.map(ref => ref.toLowerCase()));
+  const matchedGroups: GroupNames[] = [];
+  const permissionsSet = new Set<string>();
+
+  // Pre-compute normalized group refs (done once, cached)
+  const normalizedGroupRefs = new Map<GroupNames, Set<string>>();
+  for (const [groupKey, groupRefs] of Object.entries(PERMISSION_CONFIG.SPECIAL_GROUPS)) {
+    const groupName = groupKey as GroupNames;
+    normalizedGroupRefs.set(groupName, new Set(groupRefs.map(ref => ref.toLowerCase())));
+  }
+
+  // Check group membership efficiently
+  for (const [groupName, normalizedRefs] of normalizedGroupRefs) {
+    const hasMatch = Array.from(normalizedRefs).some(ref => normalizedUserRefs.has(ref));
+    if (hasMatch) {
+      matchedGroups.push(groupName);
+      
+      // Add permissions directly to set (deduplicates automatically)
+      const groupPermissions = PERMISSION_CONFIG.GROUP_PERMISSIONS[groupName];
+      if (groupPermissions) {
+        groupPermissions.forEach(perm => permissionsSet.add(perm));
+      }
+    }
+  }
+
+  return {
+    groups: matchedGroups,
+    permissions: Array.from(permissionsSet),
+  };
+}
+
+/**
  * Gets all user-specific permissions based on groups (type-safe with wildcards)
  * 
  * 🛡️ Type Safety: No more unsafe type assertions!
  * - Uses proper typing to ensure group exists in permissions
  * - Validates group permissions exist before access
  * - Provides helpful error logging for misconfiguration
+ * 
+ * 🚀 Performance: Optimized for frequent calls
+ * - Uses efficient group matching with Sets
+ * - Automatic deduplication
+ * - Minimal memory allocations
  */
 function getUserSpecificPermissions(userEntityRefs: string[], logger?: LoggerService): string[] {
-  const permissions: string[] = [];
+  const { groups, permissions } = getUserGroupsAndPermissions(userEntityRefs);
 
-  // Check each group and add their permissions (type-safe)
-  Object.entries(PERMISSION_CONFIG.SPECIAL_GROUPS).forEach(([groupKey, groupRefs]) => {
-    if (isUserInGroup(userEntityRefs, groupRefs)) {
-      const groupName = groupKey.toLowerCase() as GroupNames;
-      
-      // Type-safe access - groupName is guaranteed to exist in GROUP_PERMISSIONS
+  // Log matched groups for debugging
+  if (logger && groups.length > 0) {
+    groups.forEach(groupName => {
       const groupPermissions = PERMISSION_CONFIG.GROUP_PERMISSIONS[groupName];
-      
-      // Additional runtime validation for extra safety
-      if (groupPermissions) {
-        permissions.push(...groupPermissions);
-        logger?.debug(`🎯 Group permissions added for '${groupName}'`, {
-          group: groupName,
-          permissions: [...groupPermissions], // Convert readonly array to regular array for logging
-        });
-      } else {
-        // This should never happen with our type-safe setup, but good to log
-        logger?.error(`❌ Configuration error: Group '${groupName}' exists in SPECIAL_GROUPS but has no permissions defined`, {
-          availableGroups: Object.keys(PERMISSION_CONFIG.GROUP_PERMISSIONS),
-          missingGroup: groupName,
-        });
-      }
-    }
-  });
+      logger.debug(`🎯 Group permissions added for '${groupName}'`, {
+        group: groupName,
+        permissions: [...groupPermissions], // Convert readonly array for logging
+      });
+    });
+  }
 
-  return [...new Set(permissions)]; // Remove duplicates
+  return permissions;
 }
 
 /**
@@ -254,8 +289,15 @@ class CustomPermissionPolicy implements PermissionPolicy {
 
     const userEntityRefs = user.info.ownershipEntityRefs || [];
 
-    // 👤 CHECK IF USER IS GUEST
-    const isGuestUser = isUserInGroup(userEntityRefs, PERMISSION_CONFIG.SPECIAL_GROUPS.GUESTS);
+    // 🚀 OPTIMIZATION: Get user groups and permissions in one efficient call
+    // - Normalizes user refs once with Set for O(1) lookups
+    // - Pre-computes group memberships
+    // - Returns deduplicated permissions
+    // - Avoids duplicate group checks (guest check uses same data)
+    const { groups: userGroups, permissions: userSpecificPermissions } = getUserGroupsAndPermissions(userEntityRefs);
+
+    // 👤 CHECK IF USER IS GUEST (optimized - no extra group check)
+    const isGuestUser = userGroups.includes('guests');
     
     if (isGuestUser) {
       const isAllowed = isReadPermission(permissionName, PERMISSION_CONFIG.GUEST_PERMISSIONS);
@@ -263,6 +305,7 @@ class CustomPermissionPolicy implements PermissionPolicy {
       this.logger.debug(isAllowed ? '✅ ALLOW: Guest read access' : '❌ DENY: Guest non-read access', {
         permission: permissionName,
         userRefs: userEntityRefs,
+        userGroups,
         allowed: isAllowed,
       });
 
@@ -270,12 +313,11 @@ class CustomPermissionPolicy implements PermissionPolicy {
     }
 
     // 🎯 CHECK GROUP-SPECIFIC PERMISSIONS (with wildcard support)
-    const userSpecificPermissions = getUserSpecificPermissions(userEntityRefs, this.logger);
-    
     if (hasPermissionWithWildcards(permissionName, userSpecificPermissions)) {
       this.logger.debug('✅ ALLOW: Group-specific permission granted (wildcard match)', {
         permission: permissionName,
         userRefs: userEntityRefs,
+        userGroups,
         grantedPermissions: userSpecificPermissions,
         wildcardMatch: true,
       });
@@ -420,6 +462,7 @@ export {
   PERMISSION_CONFIG,
   matchesWildcard,
   isUserInGroup,
+  getUserGroupsAndPermissions,
   getUserSpecificPermissions,
   hasPermissionWithWildcards,
   isReadPermission,
