@@ -4,8 +4,11 @@
 
 backend:
   auth:
-    keys:
-      - secret: ${BACKEND_SECRET}
+    externalAccess:
+      - type: static
+        options:
+          token: ${BACKEND_SECRET}
+          subject: backstage-auth-service-to-service
   baseUrl: http://localhost:7007
   listen:
     port: 7007
