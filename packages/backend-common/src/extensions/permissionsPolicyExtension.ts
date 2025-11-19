@@ -132,10 +132,10 @@ function matchesWildcard(permission: string, pattern: string): boolean {
     return permission === pattern;
   }
   
+  // Escape all regex special characters except '*'
   const regexPattern = pattern
-    .replace(/\./g, '\\.')  // Escape dots
-    .replace(/\*/g, '.*');   // Convert * to .*
-  
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape all special regex chars
+    .replace(/\*/g, '.*');                 // Convert * to .*
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(permission);
 }
