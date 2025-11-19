@@ -9,7 +9,8 @@ backend:
         options:
           token: ${BACKEND_SECRET}
           subject: backstage-auth-service-to-service
-  baseUrl: http://localhost:7007
+  # Note: baseUrl inherited from app-config.docker.yaml (http://localhost:3000)
+  # This backend always runs with Docker Compose, so app-config.docker.yaml sets the correct URL
   listen:
     port: 7007
     host: 0.0.0.0

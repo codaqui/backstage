@@ -1,5 +1,14 @@
 # Backstage override configuration for your local development with Docker Compose
+
+# Important: Frontend runs on port 3000 with NGINX that proxies to backends
+# OAuth callbacks must point to the NGINX URL, not direct backend URLs
+
 backend:
+  # External URL (used for OAuth callbacks, etc.)
+  # Must match the NGINX proxy URL that browsers can access
+  # Overrides base config's http://localhost:7007 for Docker environment
+  baseUrl: http://localhost:3000
+  
   database:
     client: pg
     connection:
@@ -8,12 +17,14 @@ backend:
       user: ${POSTGRES_USER}
       password: ${POSTGRES_PASSWORD}
       database: ${POSTGRES_DB}
-  # Enable debug logging for catalog providers
+  # Enable debug logging for catalog and discovery
   logger:
     level: debug
     filters:
       catalog:
         level: debug
+      discovery:
+        level: debug  # Shows internal/external URL routing
 auth:
   # see https://backstage.io/docs/auth/ to learn about auth providers
   environment: development

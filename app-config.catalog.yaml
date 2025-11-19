@@ -9,7 +9,9 @@ backend:
         options:
           token: ${BACKEND_SECRET}
           subject: backstage-auth-service-to-service
-  baseUrl: http://localhost:7008
+  # Note: baseUrl inherited from app-config.docker.yaml (http://localhost:3000)
+  # Backend-catalog doesn't need external URL (no OAuth or browser endpoints)
+  # but inheriting the correct value prevents warnings in Discovery Service
   listen:
     port: 7008
     host: 0.0.0.0

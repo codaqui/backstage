@@ -204,65 +204,288 @@ backend.add(permissionsPolicyExtension);
 
 **Both backends use the shared Custom Discovery Service** from `@internal/backend-common`.
 
-The Discovery Service maps plugin IDs to their backend service URLs, enabling **direct service-to-service communication** without HTTP proxy overhead.
+The Discovery Service maps plugin IDs to their backend service URLs, enabling **direct service-to-service communication** without HTTP proxy overhead. It has a dual responsibility:
 
-**Implementation** (`packages/backend-common/src/services/discoveryService.ts`):
+1. **Internal URLs** (`getBaseUrl`): Backend-to-backend communication (e.g., `http://backend-main:7007`)
+2. **External URLs** (`getExternalBaseUrl`): Browser-accessible URLs for OAuth, webhooks (e.g., `http://localhost:3000`)
+
+#### 📐 Architecture Overview
 
 ```typescript
-class CustomDiscoveryService implements DiscoveryService {
-  private readonly serviceMap: Map<string, string>;
+// packages/backend-common/src/services/discoveryService.ts
 
-  constructor() {
-    this.serviceMap = new Map([
-      // Catalog service (backend-catalog)
-      ['catalog', process.env.CATALOG_SERVICE_URL || 'http://localhost:7008'],
-      
-      // Main service plugins (backend-main)
-      ['auth', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['proxy', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['scaffolder', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['techdocs', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['search', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['kubernetes', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['permission', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['notifications', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-      ['signals', process.env.MAIN_SERVICE_URL || 'http://localhost:7007'],
-    ]);
+// ===========================
+// 1. CENTRALIZED CONFIGURATION
+// ===========================
+// Plugins hosted on backend-catalog (port 7008)
+const CATALOG_PLUGINS = ['catalog'] as const;
+
+// Plugins hosted on backend-main (port 7007)
+const MAIN_PLUGINS = [
+  'auth', 'proxy', 'scaffolder', 'techdocs', 'search', 
+  'kubernetes', 'permission', 'notifications', 'signals'
+] as const;
+
+// Default service URLs (environment variables override these)
+const DEFAULT_URLS = {
+  catalog: 'http://localhost:7008',
+  main: 'http://localhost:7007',
+  external: 'http://localhost:7007',  // Fallback for external access
+};
+
+// ===========================
+// 2. TYPE SAFETY
+// ===========================
+type CatalogPlugin = typeof CATALOG_PLUGINS[number];  // 'catalog'
+type MainPlugin = typeof MAIN_PLUGINS[number];        // 'auth' | 'proxy' | ...
+type PluginId = CatalogPlugin | MainPlugin;
+
+interface DiscoveryConfig {
+  externalBaseUrl: string;    // From backend.baseUrl config
+  catalogServiceUrl: string;  // From CATALOG_SERVICE_URL env
+  mainServiceUrl: string;     // From MAIN_SERVICE_URL env
+  logger: Logger;             // Backstage logger service
+}
+
+// ===========================
+// 3. DISCOVERY IMPLEMENTATION
+// ===========================
+class CustomDiscoveryService implements DiscoveryService {
+  private config: DiscoveryConfig;
+
+  constructor(config: DiscoveryConfig) {
+    this.config = config;
+    // Log startup configuration
+    this.config.logger.info('📋 Discovery configuration loaded', {
+      externalBaseUrl: config.externalBaseUrl,
+      catalogServiceUrl: config.catalogServiceUrl,
+      mainServiceUrl: config.mainServiceUrl,
+    });
   }
 
+  // Internal service-to-service URLs (backend-to-backend)
   async getBaseUrl(pluginId: string): Promise<string> {
-    const url = this.serviceMap.get(pluginId);
-    if (!url) {
-      throw new Error(
-        `No service URL configured for plugin: ${pluginId}. ` +
-        `Available plugins: ${Array.from(this.serviceMap.keys()).join(', ')}`
-      );
-    }
-    const fullUrl = `${url}/api/${pluginId}`;
-    console.log(`🔍 Discovery: ${pluginId} → ${fullUrl}`);
+    this.validatePluginId(pluginId);
+    const baseUrl = this.getServiceUrl(pluginId as PluginId);
+    const fullUrl = `${baseUrl}/api/${pluginId}`;
+    
+    this.config.logger.debug(`🔍 Internal URL for ${pluginId}: ${fullUrl}`);
     return fullUrl;
   }
 
+  // External browser-accessible URLs (for OAuth, webhooks)
   async getExternalBaseUrl(pluginId: string): Promise<string> {
-    return this.getBaseUrl(pluginId);
+    this.validatePluginId(pluginId);
+    const fullUrl = `${this.config.externalBaseUrl}/api/${pluginId}`;
+    
+    this.config.logger.debug(`🌐 External URL for ${pluginId}: ${fullUrl}`);
+    return fullUrl;
+  }
+
+  // Helper: Route plugin to correct backend service
+  private getServiceUrl(pluginId: PluginId): string {
+    if ((CATALOG_PLUGINS as readonly string[]).includes(pluginId)) {
+      return this.config.catalogServiceUrl;
+    }
+    return this.config.mainServiceUrl;
+  }
+
+  // Helper: Validate plugin exists in configuration
+  private validatePluginId(pluginId: string): void {
+    const allPlugins = [...CATALOG_PLUGINS, ...MAIN_PLUGINS];
+    if (!allPlugins.includes(pluginId as PluginId)) {
+      this.config.logger.error(`❌ Unknown plugin: ${pluginId}`);
+      throw new Error(
+        `No service URL configured for plugin: ${pluginId}. ` +
+        `Available plugins: ${allPlugins.join(', ')}`
+      );
+    }
   }
 }
 
-// Export as service factory
+// ===========================
+// 4. SERVICE FACTORY
+// ===========================
 export const customDiscoveryServiceFactory = createServiceFactory({
   service: coreServices.discovery,
-  deps: {},
-  async factory() {
-    return new CustomDiscoveryService();
+  deps: {
+    config: coreServices.rootConfig,
+    logger: coreServices.rootLogger,
+  },
+  async factory({ config, logger }) {
+    // Create logger child for discovery service
+    const discoveryLogger = logger.child({ service: 'discovery' });
+
+    // Read configuration from app-config files
+    const catalogServiceUrl = 
+      process.env.CATALOG_SERVICE_URL || 
+      config.getOptionalString('catalog.serviceUrl') || 
+      DEFAULT_URLS.catalog;
+
+    const mainServiceUrl = 
+      process.env.MAIN_SERVICE_URL || 
+      config.getOptionalString('main.serviceUrl') || 
+      DEFAULT_URLS.main;
+
+    // External URL: backend.baseUrl (Docker: localhost:3000) OR fallback to main service
+    const externalBaseUrl = 
+      config.getOptionalString('backend.baseUrl') || 
+      mainServiceUrl;
+
+    // Warn if using fallback (means backend.baseUrl not configured)
+    if (!config.getOptionalString('backend.baseUrl')) {
+      discoveryLogger.warn(
+        '⚠️ backend.baseUrl not set, using mainServiceUrl as fallback. ' +
+        'OAuth and webhooks may not work correctly.'
+      );
+    }
+
+    return new CustomDiscoveryService({
+      externalBaseUrl,
+      catalogServiceUrl,
+      mainServiceUrl,
+      logger: discoveryLogger,
+    });
   },
 });
 ```
 
+#### 🎯 Key Features
+
 **Why Custom Discovery Service?**
+- ✅ **Dual URL routing**: Separate internal (service-to-service) and external (browser) URLs
 - ✅ **Zero overhead**: Direct backend-to-backend calls (no proxy hop)
 - ✅ **Kubernetes ready**: Works with K8s service names (e.g., `backend-catalog.namespace.svc.cluster.local`)
-- ✅ **Scalable**: Easy to add new backends - just update the service map
-- ✅ **Observable**: Logs every discovery call for debugging
+- ✅ **Type-safe**: TypeScript ensures plugin IDs are valid at compile time
+- ✅ **Maintainable**: Centralized arrays (add plugin once, not 14 times)
+- ✅ **Observable**: Structured logging with levels (info/debug/error/warn)
+- ✅ **Debuggable**: Logger filter configuration per service
+
+#### 🔧 How to Add a New Plugin
+
+When adding a plugin to a backend, update the appropriate array:
+
+```typescript
+// Adding 'events' plugin to backend-main
+const MAIN_PLUGINS = [
+  'auth', 'proxy', 'scaffolder', 'techdocs', 'search',
+  'kubernetes', 'permission', 'notifications', 'signals',
+  'events',  // ← Add here
+] as const;
+
+// TypeScript automatically includes it in type checking
+// No other changes needed - routing happens automatically
+```
+
+**What you DON'T need to do:**
+- ❌ Update serviceMap (no longer exists)
+- ❌ Repeat URLs 14 times
+- ❌ Modify getBaseUrl or getExternalBaseUrl methods
+- ❌ Update validation logic
+
+#### 📊 Logging & Debugging
+
+**Enable debug logging** in `app-config.docker.yaml`:
+
+```yaml
+backend:
+  logger:
+    filters:
+      discovery:
+        level: debug  # Shows all URL routing decisions
+```
+
+**Log levels:**
+- **info**: Startup configuration summary
+- **debug**: Every URL resolution (internal/external)
+- **warn**: Missing configuration or fallbacks
+- **error**: Invalid plugin IDs or failures
+
+**Example debug output:**
+```
+📋 Discovery configuration loaded externalBaseUrl="http://localhost:3000" ✅
+🔍 Internal URL for catalog: http://backend-catalog:7008/api/catalog
+🌐 External URL for auth: http://localhost:3000/api/auth
+⚠️ backend.baseUrl not set, using mainServiceUrl as fallback
+```
+
+#### ⚙️ Configuration Guide
+
+**Environment Variables** (highest priority):
+```bash
+CATALOG_SERVICE_URL=http://backend-catalog:7008  # Catalog backend
+MAIN_SERVICE_URL=http://backend-main:7007        # Main backend
+```
+
+**App Config Files** (merged in order):
+```yaml
+# app-config.yaml (base)
+backend:
+  baseUrl: http://localhost:7007  # Default
+
+# app-config.docker.yaml (Docker override)
+backend:
+  baseUrl: http://localhost:3000  # NGINX proxy for external access ✅
+
+# app-config.main.yaml (backend-main)
+# (no baseUrl - inherits from docker config)
+
+# app-config.catalog.yaml (backend-catalog)
+# (no baseUrl - inherits from docker config)
+```
+
+**Smart Fallback Logic:**
+```typescript
+// If backend.baseUrl is NOT set:
+externalBaseUrl = mainServiceUrl  // Falls back to backend-main internal URL
+// Logs warning: ⚠️ backend.baseUrl not set, OAuth may not work
+
+// If backend.baseUrl IS set (Docker):
+externalBaseUrl = 'http://localhost:3000'  // Uses NGINX proxy ✅
+```
+
+#### 🐛 Common Troubleshooting
+
+**Issue**: OAuth fails with internal URL (e.g., `http://backend-main:7007`)
+
+**Diagnosis**:
+```bash
+# Check logs for Discovery Service configuration
+podman logs codaqui-portal-backend-main 2>&1 | grep "Discovery configuration"
+
+# Should show:
+📋 Discovery configuration loaded externalBaseUrl="http://localhost:3000" ✅
+
+# If shows internal URL:
+📋 Discovery configuration loaded externalBaseUrl="http://backend-main:7007" ❌
+# Then backend.baseUrl is being overridden incorrectly
+```
+
+**Fix**: Check backend-specific configs don't override `backend.baseUrl`:
+```yaml
+# app-config.main.yaml - ✅ GOOD
+# (no baseUrl - inherits from app-config.docker.yaml)
+
+# app-config.main.yaml - ❌ BAD
+backend:
+  baseUrl: http://localhost:7007  # Overrides docker config!
+```
+
+**Issue**: Plugin not found error
+
+**Diagnosis**:
+```
+❌ Unknown plugin: my-new-plugin
+Available plugins: catalog, auth, proxy, scaffolder, ...
+```
+
+**Fix**: Add plugin to appropriate array:
+```typescript
+const MAIN_PLUGINS = [
+  'auth', 'proxy', 'scaffolder',
+  'my-new-plugin',  // ← Add here
+] as const;
+```
 
 ### Configuration Structure
 
@@ -806,8 +1029,63 @@ CODAQUI_TESTING_WITH_KUBERNETES=false  # Set to 'true' for K8s testing mode
 - GitHub App credentials are loaded from **environment variables only** (no YAML file)
 - Service URLs change between local development and Docker (localhost vs container names)
 - Both backends share the same PostgreSQL database
+- **OAuth Callback URL Configuration**:
+  - **Docker Compose**: Use `http://localhost:3000/api/auth/github/handler/frame` (NGINX proxy)
+  - The `backend.baseUrl` in `app-config.docker.yaml` must be `http://localhost:3000` for OAuth to work correctly
 
 See `.env.example` for detailed instructions on creating GitHub OAuth App and GitHub App.
+
+#### 🔐 OAuth Configuration Troubleshooting
+
+**Problem**: GitHub OAuth redirect fails with invalid `redirect_uri` pointing to internal container name (e.g., `http://backend-main:7007`)
+
+**Root Cause**: The `backend.baseUrl` configuration determines the OAuth callback URL used by the Custom Discovery Service. When running in Docker with NGINX proxy, backends must advertise the externally accessible URL (`http://localhost:3000`), not internal container URLs.
+
+**Solution**:
+1. **Set `backend.baseUrl` in `app-config.docker.yaml`** (already configured):
+   ```yaml
+   backend:
+     baseUrl: http://localhost:3000  # NGINX proxy URL
+   ```
+
+2. **Do NOT override `backend.baseUrl` in backend-specific configs** (`app-config.catalog.yaml`, `app-config.main.yaml`) - let them inherit from `app-config.docker.yaml`
+
+3. **Configure GitHub OAuth App callback URL** as: `http://localhost:3000/api/auth/github/handler/frame`
+
+4. **Verify Discovery Service logs** show correct configuration:
+   ```
+   📋 Discovery configuration loaded externalBaseUrl="http://localhost:3000" ✅
+   ```
+
+**Architecture Flow**:
+```
+Browser → http://localhost:3000 (NGINX) → http://backend-main:7007 (internal)
+         ↑                                                              ↓
+         └─────────── OAuth Callback ──────────────────────────────────┘
+```
+
+**Config Loading Order**:
+```yaml
+# Backend-Main:
+app-config.yaml              # backend.baseUrl: http://localhost:7007
+  ↓
+app-config.docker.yaml       # backend.baseUrl: http://localhost:3000 ✅ (overrides)
+  ↓
+app-config.main.yaml         # (no baseUrl - inherits from docker)
+
+# Backend-Catalog:
+app-config.yaml              # backend.baseUrl: http://localhost:7007
+  ↓
+app-config.docker.yaml       # backend.baseUrl: http://localhost:3000 ✅ (overrides)
+  ↓
+app-config.catalog.yaml      # (no baseUrl - inherits from docker)
+```
+
+**Key Points**:
+- ✅ `backend.baseUrl` should be set **only** in `app-config.docker.yaml` for Docker environments
+- ✅ Backend-specific configs (`app-config.main.yaml`, `app-config.catalog.yaml`) should NOT override `baseUrl`
+- ✅ Custom Discovery Service uses `backend.baseUrl` for external URLs (OAuth, browser access)
+- ✅ Service-to-service communication still uses internal URLs (`http://backend-main:7007`)
 
 ### Key Dependencies
 
