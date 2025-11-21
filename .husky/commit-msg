@@ -1,0 +1,48 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 📝 Commit Message Validation
+# Ensures commit messages follow conventional commits format
+
+commit_msg_file=$1
+commit_msg=$(head -n1 "$commit_msg_file")
+
+# Conventional Commits pattern:
+# type(scope): subject
+# 
+# Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert
+# Example: feat(catalog): add new kubernetes resources page
+
+pattern="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([a-z0-9-]+\))?: .+$"
+
+if ! echo "$commit_msg" | grep -qE "$pattern"; then
+  echo "❌ Invalid commit message format!"
+  echo ""
+  echo "📋 Commit message must follow Conventional Commits:"
+  echo "   type(scope): subject"
+  echo ""
+  echo "📌 Valid types:"
+  echo "   feat     - New feature"
+  echo "   fix      - Bug fix"
+  echo "   docs     - Documentation changes"
+  echo "   style    - Code style (formatting, no logic change)"
+  echo "   refactor - Code refactoring"
+  echo "   test     - Adding or updating tests"
+  echo "   chore    - Maintenance tasks"
+  echo "   perf     - Performance improvements"
+  echo "   ci       - CI/CD changes"
+  echo "   build    - Build system changes"
+  echo "   revert   - Revert previous commit"
+  echo ""
+  echo "✅ Good examples:"
+  echo "   feat(catalog): add kubernetes resources page"
+  echo "   fix(auth): resolve oauth callback issue"
+  echo "   docs(readme): update installation instructions"
+  echo ""
+  echo "❌ Your commit message:"
+  echo "   $commit_msg"
+  echo ""
+  exit 1
+fi
+
+echo "✅ Commit message format valid"
