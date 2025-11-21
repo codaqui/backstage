@@ -1,22 +1,22 @@
 import {
+  Box,
   Card,
   CardContent,
-  Typography,
+  CircularProgress,
+  Divider,
+  Link,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider,
-  Box,
-  Link,
-  CircularProgress,
+  Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import CheckCircleIcon from '@material-ui/icons/CheckCircle';
-import WhatsAppIcon from '@material-ui/icons/WhatsApp';
 import GitHubIcon from '@material-ui/icons/GitHub';
-import SchoolIcon from '@material-ui/icons/School';
 import GroupIcon from '@material-ui/icons/Group';
+import SchoolIcon from '@material-ui/icons/School';
+import WhatsAppIcon from '@material-ui/icons/WhatsApp';
 import { useResourceCounts } from '../../hooks';
 
 const useStyles = makeStyles(theme => ({
@@ -43,7 +43,7 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-export const CodaquiWelcomeCard = () => {
+export const CodaquiWelcomeCard = (): JSX.Element => {
   const classes = useStyles();
   const { counts, loading } = useResourceCounts();
 
@@ -56,9 +56,10 @@ export const CodaquiWelcomeCard = () => {
         <Typography variant="h5" component="h2" gutterBottom>
           👋 Bem-vindo à Comunidade Codaqui!
         </Typography>
-        
+
         <Typography variant="body1" paragraph>
-          Este é o <span className={classes.highlight}>portal centralizado</span> de
+          Este é o{' '}
+          <span className={classes.highlight}>portal centralizado</span> de
           recursos, comunicação e aprendizado da Codaqui.
         </Typography>
 
@@ -68,7 +69,7 @@ export const CodaquiWelcomeCard = () => {
           <Typography variant="h6" gutterBottom>
             🎯 O que você pode fazer aqui:
           </Typography>
-          
+
           <List>
             <ListItem className={classes.listItem}>
               <ListItemIcon className={classes.icon}>
@@ -85,7 +86,7 @@ export const CodaquiWelcomeCard = () => {
                 }
               />
             </ListItem>
-            
+
             <ListItem className={classes.listItem}>
               <ListItemIcon className={classes.icon}>
                 <SchoolIcon />
@@ -101,7 +102,7 @@ export const CodaquiWelcomeCard = () => {
                 }
               />
             </ListItem>
-            
+
             <ListItem className={classes.listItem}>
               <ListItemIcon className={classes.icon}>
                 <GitHubIcon />
@@ -111,7 +112,7 @@ export const CodaquiWelcomeCard = () => {
                 secondary="Repositórios da comunidade no GitHub"
               />
             </ListItem>
-            
+
             <ListItem className={classes.listItem}>
               <ListItemIcon className={classes.icon}>
                 <GroupIcon />
@@ -126,17 +127,22 @@ export const CodaquiWelcomeCard = () => {
 
         <Box className={classes.linkBox}>
           <Typography variant="body2" color="textSecondary" gutterBottom>
-            <CheckCircleIcon style={{ fontSize: 16, verticalAlign: 'middle' }} />{' '}
+            <CheckCircleIcon
+              style={{ fontSize: 16, verticalAlign: 'middle' }}
+            />{' '}
             <strong>CNPJ:</strong> 44.593.429/0001-05
           </Typography>
           <Typography variant="body2" color="textSecondary">
-            <CheckCircleIcon style={{ fontSize: 16, verticalAlign: 'middle' }} />{' '}
-            <strong>Missão:</strong> Democratizar o ensino tecnológico para jovens
+            <CheckCircleIcon
+              style={{ fontSize: 16, verticalAlign: 'middle' }}
+            />{' '}
+            <strong>Missão:</strong> Democratizar o ensino tecnológico para
+            jovens
           </Typography>
           <Box mt={1}>
-            <Link 
-              href="https://codaqui.dev" 
-              target="_blank" 
+            <Link
+              href="https://codaqui.dev"
+              target="_blank"
               rel="noopener noreferrer"
               color="primary"
             >
