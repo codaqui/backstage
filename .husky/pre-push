@@ -20,9 +20,9 @@ yarn lint:all || {
   exit 1
 }
 
-# 3. Run tests
+# 3. Run tests (non-interactive)
 echo "🧪 Running tests..."
-yarn test || {
+yarn test --watchAll=false || {
   echo "❌ Tests failed!"
   echo "💡 Fix failing tests before pushing"
   exit 1
