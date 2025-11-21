@@ -1,29 +1,26 @@
 import { createBackend } from '@backstage/backend-defaults';
-import { createBackendModule } from '@backstage/backend-plugin-api';
-import { 
-  runPeriodically, 
-  permissionsPolicyExtension,
-  customDiscoveryServiceFactory 
-} from '@internal/backend-common';
-import { Duration } from 'luxon';
 import {
+  coreServices,
+  createBackendModule,
+} from '@backstage/backend-plugin-api';
+import type {
   ClusterDetails,
   KubernetesClustersSupplier,
-  kubernetesClusterSupplierExtensionPoint,
 } from '@backstage/plugin-kubernetes-node';
-
-// Debug Environment Variables
-console.log('🔍 Backend Main - Environment Variables:');
-console.log(`   CATALOG_SERVICE_URL: ${process.env.CATALOG_SERVICE_URL}`);
-console.log(`   MAIN_SERVICE_URL: ${process.env.MAIN_SERVICE_URL}`);
-console.log(`   BACKEND_SECRET: ${process.env.BACKEND_SECRET ? '***' + process.env.BACKEND_SECRET.slice(-4) : 'NOT SET'}`);
+import { kubernetesClusterSupplierExtensionPoint } from '@backstage/plugin-kubernetes-node';
+import {
+  customDiscoveryServiceFactory,
+  permissionsPolicyExtension,
+  runPeriodically,
+} from '@internal/backend-common';
+import { Duration } from 'luxon';
 
 // Custom Kubernetes Clusters Supplier
 // https://backstage.io/docs/features/kubernetes/installation
 export class CustomClustersSupplier implements KubernetesClustersSupplier {
   constructor(private clusterDetails: ClusterDetails[] = []) {}
 
-  static create(refreshInterval: Duration) {
+  static create(refreshInterval: Duration): CustomClustersSupplier {
     const clusterSupplier = new CustomClustersSupplier();
     // setup refresh, e.g. using a copy of https://github.com/backstage/backstage/blob/master/plugins/kubernetes-backend/src/service/runPeriodically.ts
     runPeriodically(
@@ -43,6 +40,30 @@ export class CustomClustersSupplier implements KubernetesClustersSupplier {
 }
 
 const backend = createBackend();
+
+// Log environment configuration at startup
+const logStartupConfig = createBackendModule({
+  pluginId: 'app',
+  moduleId: 'startup-logger',
+  register(env) {
+    env.registerInit({
+      deps: { logger: coreServices.logger },
+      async init({ logger }) {
+        logger.info('🚀 Backend Main starting up');
+        logger.debug('Environment configuration', {
+          // eslint-disable-next-line dot-notation
+          catalogServiceUrl: process.env['CATALOG_SERVICE_URL'] || 'not set',
+          // eslint-disable-next-line dot-notation
+          mainServiceUrl: process.env['MAIN_SERVICE_URL'] || 'not set',
+          // eslint-disable-next-line dot-notation
+          backendSecretConfigured: !!process.env['BACKEND_SECRET'],
+        });
+      },
+    });
+  },
+});
+
+backend.add(logStartupConfig);
 
 // Replace default Discovery Service with custom implementation
 // This enables direct service-to-service communication (K8s ready)

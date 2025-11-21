@@ -31,8 +31,10 @@ export function useResourceCounts(): {
     entities.items.forEach(entity => {
       counts.total++;
 
-      const type = entity.spec?.type as string;
-      const system = entity.spec?.system as string;
+      // eslint-disable-next-line dot-notation
+      const type = entity.spec?.['type'] as string;
+      // eslint-disable-next-line dot-notation
+      const system = entity.spec?.['system'] as string;
 
       // WhatsApp tem tratamento especial (é social mas mostramos separado)
       if (type === 'whatsapp') {
@@ -47,10 +49,20 @@ export function useResourceCounts(): {
         counts.socialResources++;
       }
       // Se não tem sistema, tentar inferir pelo tipo
-      else if (type === 'learning-path' || type === 'blog' || type === 'website') {
+      else if (
+        type === 'learning-path' ||
+        type === 'blog' ||
+        type === 'website'
+      ) {
         counts.learningResources++;
-      } else if (type === 'discord' || type === 'youtube' || type === 'github' || 
-                 type === 'linkedin' || type === 'instagram' || type === 'twitter') {
+      } else if (
+        type === 'discord' ||
+        type === 'youtube' ||
+        type === 'github' ||
+        type === 'linkedin' ||
+        type === 'instagram' ||
+        type === 'twitter'
+      ) {
         counts.socialResources++;
       }
     });

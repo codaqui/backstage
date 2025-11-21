@@ -1,12 +1,12 @@
-import { Entity } from '@backstage/catalog-model';
-import { WhatsAppGroup } from './types';
+import type { Entity } from '@backstage/catalog-model';
+import type { WhatsAppGroup } from './types';
 
 /**
  * Extrai informações de um grupo WhatsApp de uma entidade do catálogo
  */
 export function extractWhatsAppGroupInfo(entity: Entity): WhatsAppGroup {
   const firstLink = entity.metadata.links?.[0];
-  
+
   return {
     name: entity.metadata.name,
     title: entity.metadata.annotations?.['human-name'] || entity.metadata.name,
@@ -41,5 +41,6 @@ export function formatComponentName(name: string): string {
  * Extrai o tipo de uma entidade
  */
 export function getEntityType(entity: Entity): string | undefined {
-  return entity.spec?.type as string | undefined;
+  // eslint-disable-next-line dot-notation
+  return entity.spec?.['type'] as string | undefined;
 }

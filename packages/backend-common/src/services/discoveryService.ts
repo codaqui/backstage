@@ -1,5 +1,11 @@
-import { createServiceFactory, coreServices } from '@backstage/backend-plugin-api';
-import type { DiscoveryService, LoggerService } from '@backstage/backend-plugin-api';
+import type {
+  DiscoveryService,
+  LoggerService,
+} from '@backstage/backend-plugin-api';
+import {
+  coreServices,
+  createServiceFactory,
+} from '@backstage/backend-plugin-api';
 
 // ============================================================================
 // CONFIGURATION - Edit this section to manage plugin routing
@@ -10,7 +16,7 @@ import type { DiscoveryService, LoggerService } from '@backstage/backend-plugin-
  * - info: Service initialization, configuration summary
  * - debug: Individual discovery calls (internal/external routing)
  * - error: Configuration errors, missing plugins
- * 
+ *
  * To enable debug logs, set in app-config.yaml:
  * backend:
  *   logger:
@@ -35,18 +41,18 @@ const MAIN_PLUGINS = [
   'auth',
   'proxy',
   'permission',
-  
+
   // Features
   'scaffolder',
   'techdocs',
   'search',
   'kubernetes',
-  
+
   // Integrations
   'notifications',
   'signals',
   'events',
-  
+
   // Community
   'announcements',
   'categories',
@@ -66,12 +72,12 @@ const DEFAULT_URLS = {
 // TYPE DEFINITIONS
 // ============================================================================
 
-type CatalogPlugin = typeof CATALOG_PLUGINS[number];
-type MainPlugin = typeof MAIN_PLUGINS[number];
+type CatalogPlugin = (typeof CATALOG_PLUGINS)[number];
+type MainPlugin = (typeof MAIN_PLUGINS)[number];
 type PluginId = CatalogPlugin | MainPlugin;
 
 interface DiscoveryConfig {
-  externalBaseUrl: string;  // Will fallback to mainServiceUrl if not set
+  externalBaseUrl: string; // Will fallback to mainServiceUrl if not set
   catalogServiceUrl: string;
   mainServiceUrl: string;
   logger: LoggerService;
@@ -83,18 +89,18 @@ interface DiscoveryConfig {
 
 /**
  * Custom Discovery Service Implementation for Multi-Backend Architecture
- * 
+ *
  * This service maps plugin IDs to their respective backend service URLs,
  * enabling direct service-to-service communication without HTTP proxy overhead.
- * 
+ *
  * Key Features:
  * - Internal URLs for service-to-service communication
  * - External URLs for browser-accessible endpoints (OAuth, etc.)
  * - Environment-based configuration
  * - Type-safe plugin routing
- * 
+ *
  * Perfect for Kubernetes deployments where service discovery is handled natively.
- * 
+ *
  * Usage:
  *   backend.add(customDiscoveryServiceFactory);
  */
@@ -108,28 +114,37 @@ class CustomDiscoveryService implements DiscoveryService {
     this.config = config;
     this.logger = config.logger.child({ service: 'discovery' });
     this.externalPlugins = new Set(MAIN_PLUGINS);
-    
+
     // Build service map from configuration
     this.serviceMap = new Map([
-      ...CATALOG_PLUGINS.map((plugin): [PluginId, string] => [plugin, config.catalogServiceUrl]),
-      ...MAIN_PLUGINS.map((plugin): [PluginId, string] => [plugin, config.mainServiceUrl]),
+      ...CATALOG_PLUGINS.map((plugin): [PluginId, string] => [
+        plugin,
+        config.catalogServiceUrl,
+      ]),
+      ...MAIN_PLUGINS.map((plugin): [PluginId, string] => [
+        plugin,
+        config.mainServiceUrl,
+      ]),
     ]);
-    
+
     this.logInitialization();
   }
 
   private logInitialization(): void {
-    this.logger.info('🚀 Setting up Custom Discovery Service for multi-backend architecture');
-    
+    this.logger.info(
+      '🚀 Setting up Custom Discovery Service for multi-backend architecture',
+    );
+
     // Warn if external URL is same as internal (likely using fallback)
-    const usingFallback = this.config.externalBaseUrl === this.config.mainServiceUrl;
+    const usingFallback =
+      this.config.externalBaseUrl === this.config.mainServiceUrl;
     if (usingFallback) {
       this.logger.warn(
         '⚠️  Using mainServiceUrl as externalBaseUrl (backend.baseUrl not set). ' +
-        'This works for local dev but should be configured for Docker/Production.'
+          'This works for local dev but should be configured for Docker/Production.',
       );
     }
-    
+
     this.logger.debug('📋 Discovery configuration loaded', {
       externalBaseUrl: this.config.externalBaseUrl,
       catalogServiceUrl: this.config.catalogServiceUrl,
@@ -144,20 +159,26 @@ class CustomDiscoveryService implements DiscoveryService {
 
   async getBaseUrl(pluginId: string): Promise<string> {
     const serviceUrl = this.serviceMap.get(pluginId as PluginId);
-    
+
     if (!serviceUrl) {
-      this.logger.error(`❌ No service URL configured for plugin: ${pluginId}`, {
-        pluginId,
-        availablePlugins: Array.from(this.serviceMap.keys()),
-      });
+      this.logger.error(
+        `❌ No service URL configured for plugin: ${pluginId}`,
+        {
+          pluginId,
+          availablePlugins: Array.from(this.serviceMap.keys()),
+        },
+      );
       throw new Error(
         `No service URL configured for plugin: ${pluginId}. ` +
-        `Available plugins: ${Array.from(this.serviceMap.keys()).join(', ')}`
+          `Available plugins: ${Array.from(this.serviceMap.keys()).join(', ')}`,
       );
     }
-    
+
     const fullUrl = `${serviceUrl}/api/${pluginId}`;
-    this.logger.debug(`🔍 Internal discovery: ${pluginId}`, { pluginId, url: fullUrl });
+    this.logger.debug(`🔍 Internal discovery: ${pluginId}`, {
+      pluginId,
+      url: fullUrl,
+    });
     return fullUrl;
   }
 
@@ -165,16 +186,16 @@ class CustomDiscoveryService implements DiscoveryService {
     // Plugins on backend-main need external URL (for OAuth, browser access, etc.)
     if (this.externalPlugins.has(pluginId as MainPlugin)) {
       const externalUrl = `${this.config.externalBaseUrl}/api/${pluginId}`;
-      this.logger.debug(`🌐 External discovery: ${pluginId}`, { 
-        pluginId, 
+      this.logger.debug(`🌐 External discovery: ${pluginId}`, {
+        pluginId,
         url: externalUrl,
         type: 'external',
       });
       return externalUrl;
     }
-    
+
     // Other plugins use internal URLs
-    this.logger.debug(`🔗 Internal discovery (via getBaseUrl): ${pluginId}`, { 
+    this.logger.debug(`🔗 Internal discovery (via getBaseUrl): ${pluginId}`, {
       pluginId,
       type: 'internal',
     });
@@ -188,29 +209,29 @@ class CustomDiscoveryService implements DiscoveryService {
 
 /**
  * Custom Discovery Service Factory
- * 
+ *
  * Replaces the default Backstage DiscoveryService with our custom implementation
  * that supports multi-backend architecture with direct service-to-service calls.
- * 
+ *
  * Environment Variables:
  * - CATALOG_SERVICE_URL: URL for backend-catalog (default: http://localhost:7008)
  *   - Docker: http://backend-catalog:7008
  *   - K8s: http://backend-catalog.namespace.svc.cluster.local:7008
- * 
+ *
  * - MAIN_SERVICE_URL: URL for backend-main (default: http://localhost:7007)
  *   - Docker: http://backend-main:7007
  *   - K8s: http://backend-main.namespace.svc.cluster.local:7007
- * 
+ *
  * Configuration (app-config.yaml):
  * - backend.baseUrl: External URL for OAuth callbacks and browser-accessible endpoints
  *   - OPTIONAL: Falls back to MAIN_SERVICE_URL if not set
  *   - IMPORTANT: Must be set in app-config.docker.yaml for OAuth to work correctly
- *   
+ *
  *   Examples:
  *   - Local dev (no Docker): http://localhost:7007 (can be omitted, uses fallback)
  *   - Docker: http://localhost:3000 (REQUIRED - NGINX proxy)
  *   - Production: https://your-domain.com (REQUIRED)
- * 
+ *
  * Why backend.baseUrl matters:
  * - OAuth callbacks MUST point to browser-accessible URL
  * - backend-catalog doesn't need it (no browser endpoints)
@@ -224,21 +245,26 @@ export const customDiscoveryServiceFactory = createServiceFactory({
   },
   async factory({ config, logger }) {
     // Internal service URLs from environment (used for backend-to-backend calls)
-    const catalogServiceUrl = process.env.CATALOG_SERVICE_URL || DEFAULT_URLS.catalog;
-    const mainServiceUrl = process.env.MAIN_SERVICE_URL || DEFAULT_URLS.main;
-    
+    const catalogServiceUrl =
+      // eslint-disable-next-line dot-notation
+      process.env['CATALOG_SERVICE_URL'] || DEFAULT_URLS.catalog;
+    const mainServiceUrl =
+      // eslint-disable-next-line dot-notation
+      process.env['MAIN_SERVICE_URL'] || DEFAULT_URLS.main;
+
     // External URL from app-config (used for OAuth callbacks, browser access)
     // Falls back to mainServiceUrl if backend.baseUrl is not explicitly set
     // This is important for backend-main (OAuth) but optional for backend-catalog
-    const externalBaseUrl = config.getOptionalString('backend.baseUrl') || mainServiceUrl;
-    
+    const externalBaseUrl =
+      config.getOptionalString('backend.baseUrl') || mainServiceUrl;
+
     const discoveryConfig: DiscoveryConfig = {
       externalBaseUrl,
       catalogServiceUrl,
       mainServiceUrl,
       logger,
     };
-    
+
     return new CustomDiscoveryService(discoveryConfig);
   },
 });

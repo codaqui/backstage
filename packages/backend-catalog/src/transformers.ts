@@ -1,6 +1,8 @@
-import {
+import type {
   TeamTransformer,
   UserTransformer,
+} from '@backstage/plugin-catalog-backend-module-github';
+import {
   defaultUserTransformer,
   defaultOrganizationTeamTransformer,
 } from '@backstage/plugin-catalog-backend-module-github';

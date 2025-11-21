@@ -1,7 +1,8 @@
 import { useApi } from '@backstage/core-plugin-api';
 import { catalogApiRef } from '@backstage/plugin-catalog-react';
 import { useAsync } from 'react-use';
-import { WhatsAppGroup, extractWhatsAppGroupInfo } from '../utils';
+import type { WhatsAppGroup } from '../utils';
+import { extractWhatsAppGroupInfo } from '../utils';
 
 export function useWhatsAppGroups(): {
   groups: WhatsAppGroup[];
