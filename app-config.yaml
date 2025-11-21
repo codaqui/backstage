@@ -82,7 +82,6 @@ catalog:
   rules:
     - allow: [Component, System, API, Resource, Location]
   locations:
-  
     # Common Resources (always loaded: users, groups, systems)
     - type: file
       target: ./default/common/*.yaml

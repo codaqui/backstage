@@ -18,7 +18,7 @@ backend:
   cors:
     # Only backend-to-backend communication needs CORS
     # Browser requests come through NGINX, which handles CORS
-    origin: 
-      - http://backend-main:7007      # Docker internal
-      - http://localhost:7007          # Fallback for local testing
-      - http://localhost:3000          # NGINX origin preservation
+    origin:
+      - http://backend-main:7007 # Docker internal
+      - http://localhost:7007 # Fallback for local testing
+      - http://localhost:3000 # NGINX origin preservation

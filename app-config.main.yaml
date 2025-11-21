@@ -18,8 +18,8 @@ backend:
     # Only backend-to-backend communication needs CORS
     # Browser requests come through NGINX, which handles CORS
     origin:
-      - http://backend-catalog:7008    # Docker internal
-      - http://localhost:7008          # Fallback for local testing
-      - http://localhost:3000          # NGINX origin preservation
+      - http://backend-catalog:7008 # Docker internal
+      - http://localhost:7008 # Fallback for local testing
+      - http://localhost:3000 # NGINX origin preservation
 
 # Note: No proxy needed here - Custom DiscoveryService handles direct backend-to-backend communication

@@ -8,7 +8,7 @@ backend:
   # Must match the NGINX proxy URL that browsers can access
   # Overrides base config's http://localhost:7007 for Docker environment
   baseUrl: http://localhost:3000
-  
+
   database:
     client: pg
     connection:
@@ -24,7 +24,7 @@ backend:
       catalog:
         level: debug
       discovery:
-        level: debug  # Shows internal/external URL routing
+        level: debug # Shows internal/external URL routing
 auth:
   # see https://backstage.io/docs/auth/ to learn about auth providers
   environment: development
