@@ -61,4 +61,30 @@ module.exports = {
       },
     ],
   },
+  overrides: [
+    {
+      // Backend packages: Allow more console methods for debugging and logging
+      files: ['packages/backend-*/**/*.ts', 'packages/backend-*/**/*.js'],
+      rules: {
+        'no-console': [
+          'warn', // Warn instead of error for backend code
+          {
+            allow: ['log', 'info', 'warn', 'error', 'debug'], // Allow common logging methods
+          },
+        ],
+      },
+    },
+    {
+      // Frontend packages: Keep strict console rules but allow info for debugging
+      files: ['packages/app/**/*.ts', 'packages/app/**/*.tsx'],
+      rules: {
+        'no-console': [
+          'error',
+          {
+            allow: ['info', 'warn', 'error'], // Allow console.info for frontend debugging
+          },
+        ],
+      },
+    },
+  ],
 };

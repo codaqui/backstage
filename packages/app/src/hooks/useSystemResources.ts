@@ -3,8 +3,6 @@ import { useApi } from '@backstage/core-plugin-api';
 import { catalogApiRef } from '@backstage/plugin-catalog-react';
 import { useAsync } from 'react-use';
 
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-
 export interface SystemResource {
   name: string;
   title: string;
@@ -40,38 +38,38 @@ function extractSystemResourceInfo(entity: Entity): SystemResource {
  * Hook para buscar recursos de um sistema específico
  * @param systemName Nome do sistema (e.g., 'learning-resources', 'social-resources')
  */
-export function useSystemResources(systemName: string) {
+export function useSystemResources(systemName: string): {
+  resources: SystemResource[];
+  loading: boolean;
+  error: Error | undefined;
+} {
   const catalogApi = useApi(catalogApiRef);
 
   const {
     value: resources,
     loading,
     error,
-  } = useAsync(
-    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-    async (): Promise<SystemResource[]> => {
-      const entities = await catalogApi.getEntities({
-        filter: {
-          kind: 'Component',
-        },
-      });
+  } = useAsync(async (): Promise<SystemResource[]> => {
+    const entities = await catalogApi.getEntities({
+      filter: {
+        kind: 'Component',
+      },
+    });
 
-      // Filtrar por sistema
-      const filtered = entities.items.filter(
-        entity =>
-          // eslint-disable-next-line dot-notation
-          entity.spec?.['system'] === systemName ||
-          entity.relations?.some(
-            rel =>
-              rel.type === 'partOf' &&
-              rel.targetRef.includes(`system:default/${systemName}`),
-          ),
-      );
+    // Filtrar por sistema
+    const filtered = entities.items.filter(
+      entity =>
+        // eslint-disable-next-line dot-notation
+        entity.spec?.['system'] === systemName ||
+        entity.relations?.some(
+          rel =>
+            rel.type === 'partOf' &&
+            rel.targetRef.includes(`system:default/${systemName}`),
+        ),
+    );
 
-      return filtered.map(extractSystemResourceInfo);
-    },
-    [catalogApi, systemName],
-  );
+    return filtered.map(extractSystemResourceInfo);
+  }, [catalogApi, systemName]);
 
   return { resources: resources || [], loading, error };
 }

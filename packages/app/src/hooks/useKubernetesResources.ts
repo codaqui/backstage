@@ -6,8 +6,6 @@ import {
 } from '@backstage/core-plugin-api';
 import { useAsync } from 'react-use';
 
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-
 // ============================================================================
 // TYPE DEFINITIONS - Kubernetes API Response Types
 // ============================================================================
@@ -106,15 +104,18 @@ interface KubernetesResourcesData {
   catalogedCount: number;
 }
 
-export const useKubernetesResources = () => {
+export const useKubernetesResources = (): {
+  data: KubernetesResourcesData | undefined;
+  loading: boolean;
+  error: Error | undefined;
+} => {
   const config = useApi(configApiRef);
   const identityApi = useApi(identityApiRef);
 
   const baseUrl = config.getString('backend.baseUrl');
 
-  const { value, loading, error } = useAsync(
-    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-    async (): Promise<KubernetesResourcesData> => {
+  const { value, loading, error } =
+    useAsync(async (): Promise<KubernetesResourcesData> => {
       const { token } = await identityApi.getCredentials();
 
       // Get clusters info
@@ -259,9 +260,7 @@ export const useKubernetesResources = () => {
         allResources,
         catalogedCount: allResources.filter(r => r.cataloged).length,
       };
-    },
-    [baseUrl, identityApi],
-  );
+    }, [baseUrl, identityApi]);
 
   return {
     data: value,

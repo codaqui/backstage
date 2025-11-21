@@ -246,11 +246,8 @@ export const customDiscoveryServiceFactory = createServiceFactory({
   async factory({ config, logger }) {
     // Internal service URLs from environment (used for backend-to-backend calls)
     const catalogServiceUrl =
-      // eslint-disable-next-line dot-notation
-      process.env['CATALOG_SERVICE_URL'] || DEFAULT_URLS.catalog;
-    const mainServiceUrl =
-      // eslint-disable-next-line dot-notation
-      process.env['MAIN_SERVICE_URL'] || DEFAULT_URLS.main;
+      process.env['CATALOG_SERVICE_URL'] || DEFAULT_URLS.catalog; // eslint-disable-line dot-notation -- TypeScript requires bracket notation for process.env
+    const mainServiceUrl = process.env['MAIN_SERVICE_URL'] || DEFAULT_URLS.main; // eslint-disable-line dot-notation -- TypeScript requires bracket notation for process.env
 
     // External URL from app-config (used for OAuth callbacks, browser access)
     // Falls back to mainServiceUrl if backend.baseUrl is not explicitly set

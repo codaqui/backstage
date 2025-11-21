@@ -27,8 +27,7 @@ import CheckCircleIcon from '@material-ui/icons/CheckCircle';
 import CloudQueueIcon from '@material-ui/icons/CloudQueue';
 import SearchIcon from '@material-ui/icons/Search';
 import { Link } from 'react-router-dom';
-// eslint-disable-next-line no-restricted-syntax
-import React, { useState } from 'react';
+import React from 'react';
 import { useKubernetesResources } from '../hooks/useKubernetesResources';
 
 const useStyles = makeStyles(theme => ({
@@ -277,8 +276,8 @@ const ResourcesTable = ({
 export const KubernetesResourcesPage = (): JSX.Element => {
   const classes = useStyles();
   const { data, loading, error } = useKubernetesResources();
-  const [tabValue, setTabValue] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [tabValue, setTabValue] = React.useState(0);
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   if (loading) {
     return (
@@ -460,22 +459,3 @@ export const KubernetesResourcesPage = (): JSX.Element => {
     </Page>
   );
 };
-
-/**
- * Kubernetes resource display interface
- * Imported from useKubernetesResources hook for consistency
- */
-interface KubernetesResource {
-  kind: string;
-  name: string;
-  namespace: string;
-  cluster: string;
-  labels: Record<string, string>;
-  cataloged: boolean;
-  catalogEntity?: string;
-}
-
-interface ResourcesTableProps {
-  resources: KubernetesResource[];
-  classes: Record<string, string>;
-}
