@@ -122,18 +122,21 @@ jobs:
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
     if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        service: [frontend, backend-main, backend-catalog]
 
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
-          scan-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest'
+          scan-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}:latest'
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
