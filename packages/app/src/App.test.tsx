@@ -5,7 +5,7 @@ describe('App', () => {
   it('should render', async () => {
     process.env = {
       NODE_ENV: 'test',
-      APP_CONFIG: [
+      APP_CONFIG: JSON.stringify([
         {
           data: {
             app: { title: 'Test' },
@@ -16,7 +16,7 @@ describe('App', () => {
           },
           context: 'test',
         },
-      ] as any,
+      ]),
     };
 
     const rendered = render(<App />);
