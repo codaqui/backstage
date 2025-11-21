@@ -1,817 +1,286 @@
-# AGENTS.md - AI Agent Instructions for Codaqui Backstage Portal
-
-> **📖 Note for Human Contributors:** This document contains technical guidelines, architecture decisions, and patterns for both human and AI contributors. Please read this file before making changes to understand the project structure and conventions.
+# 🤖 AI Agent Instructions for Codaqui Backstage Portal
 
 ## 📋 Project Overview
 
-This repository contains the **Codaqui Backstage Portal**, a developer portal built with [Backstage](https://backstage.io) that provides a unified interface for managing software components, APIs, documentation, and community resources.
+This is a **Backstage-based developer portal** for the Codaqui community, built as a monorepo using Yarn Berry v4.4.1. The portal serves as a centralized hub for resources, communication, and learning within the Codaqui technology community.
 
-### Basic Information
+### 🏗️ Architecture
 
-- **Framework**: Backstage (Open Platform for building developer portals)
-- **Language**: TypeScript, React
-- **Package Manager**: Yarn (Berry/v4)
-- **Container Runtime**: Podman/Docker
- - **Container Runtime**: Podman/Docker (local)
- - **Production Platform**: Kubernetes (in development)
-- **Node Version**: 22+ (managed via nvm)
-- **Repository**: https://github.com/codaqui/backstage
-- **Organization**: Codaqui (CNPJ 44.593.429/0001-05)
-- **Status**: Beta (no changelog yet)
+- **Framework**: Backstage (developer portal platform)
+- **Frontend**: React 18.x with TypeScript, Material-UI v4.12.2
+- **Backend**: Multi-service architecture with 3 specialized backends
+- **Build Tool**: Webpack 5.96.0
+- **Database**: PostgreSQL
+- **Testing**: Jest and Playwright
+- **Package Manager**: Yarn Berry v4.4.1
+- **Styling**: Material-UI v4 with custom Codaqui theme (#57B593 green, #3A2F39 dark gray)
 
-## 🎯 Project Objectives
-
-1. **Developer Portal**: Centralize documentation, APIs, and services
-2. **Community Hub**: Showcase WhatsApp groups, Discord channels, learning paths
-3. **Software Templates**: Provide templates for common projects
-4. **Permission Management**: Implement role-based access control
-5. **GitHub Integration**: Sync GitHub organization data
-6. **Brand Identity**: Maintain Codaqui visual identity (green #57B593)
-
-## 📁 Project Structure
+### 📁 Project Structure
 
 ```
 codaqui-portal/
 ├── packages/
-│   ├── app/                          # Frontend React application
-│   │   └── src/
-│   │       ├── assets/               # Static assets
-│   │       │   └── logos/            # Codaqui logos
-│   │       │       ├── codaqui-full.svg    # Full color logo
-│   │       │       └── codaqui-mono.svg    # Monochrome (sidebar)
-│   │       ├── components/           # React components
-│   │       │   ├── home/             # Home page components
-│   │       │   │   ├── HomePage.tsx
-│   │       │   │   ├── CodaquiWelcomeCard.tsx
-│   │       │   │   ├── WhatsAppGroupsCard.tsx
-│   │       │   │   └── index.ts
-│   │       │   ├── Root/             # Root layout & navigation
-│   │       │   │   ├── Root.tsx
-│   │       │   │   ├── LogoFull.tsx
-│   │       │   │   └── LogoIcon.tsx
-│   │       │   ├── catalog/          # Catalog components
-│   │       │   └── search/           # Search components
-│   │       ├── pages/                # Full pages (routes)
-│   │       │   ├── WhatsAppGroupsPage.tsx
-│   │       │   └── index.ts
-│   │       ├── hooks/                # Custom React hooks
-│   │       │   ├── useWhatsAppGroups.ts
-│   │       │   ├── useResourceCounts.ts
-│   │       │   └── index.ts
-│   │       ├── utils/                # Pure functions & types
-│   │       │   ├── types.ts          # TypeScript interfaces
-│   │       │   ├── helpers.ts        # Helper functions
-│   │       │   └── index.ts
-│   │       ├── theme/                # Custom themes
-│   │       │   └── codaquiTheme.ts   # Light & dark themes
-│   │       ├── App.tsx               # Main app config & routes
-│   │       └── apis.ts               # API configuration
-│   ├── backend-common/               # Shared Backend Code
+│   ├── app/                    # React frontend application
 │   │   ├── src/
-│   │   │   ├── extensions/
-│   │   │   │   └── permissionsPolicyExtension.ts  # Shared permission policy
-│   │   │   ├── services/
-│   │   │   │   └── discoveryService.ts            # Shared discovery service
-│   │   │   ├── utils/
-│   │   │   │   └── runPeriodically.ts             # Periodic task runner
-│   │   │   └── index.ts              # Exports all shared code
-│   │   └── package.json
-│   ├── backend-catalog/              # Backend Catalog (Port 7008)
+│   │   │   ├── components/     # Custom React components
+│   │   │   │   └── home/
+│   │   │   │       └── CodaquiWelcomeCard.tsx
+│   │   │   ├── hooks/          # Custom React hooks
+│   │   │   │   └── useResourceCounts.ts
+│   │   │   ├── theme/          # Material-UI theme configuration
+│   │   │   │   └── codaquiTheme.ts
+│   │   │   └── utils/          # Utility functions
+│   │   └── package.json        # Frontend dependencies
+│   │
+│   ├── backend-main/           # Main backend (port 7007)
 │   │   ├── src/
-│   │   │   ├── index.ts              # Discovery Service + Catalog plugins
-│   │   │   ├── transformers.ts       # GitHub org transformers
-│   │   │   └── utils/
-│   │   └── package.json
-│   ├── backend-main/                 # Backend Main (Port 7007)
+│   │   │   └── index.ts        # Backend configuration with plugins
+│   │   └── package.json        # Backend dependencies
+│   │
+│   ├── backend-catalog/        # Catalog backend (port 7008)
 │   │   ├── src/
-│   │   │   ├── index.ts              # Discovery Service + other plugins
-│   │   │   └── utils/
-│   │   └── package.json
-│   └── plugins/                      # Custom Backstage plugins
-├── default/                          # Default entities (organized by context)
-│   ├── common/                       # Always loaded resources
-│   │   ├── guest.yaml                # Guest user/group config
-│   │   ├── system-general.yaml       # General system entity
-│   │   ├── system-learning-resources.yaml  # Learning resources system
-│   │   ├── system-social-resources.yaml    # Social resources system
-│   │   └── system-whatsapp-groups.yaml     # WhatsApp groups system
-│   ├── k8s/                          # Kubernetes-specific resources
-│   │   ├── .gitkeep                  # Keeps folder in git
-│   │   ├── catalog-info.yaml         # K8s sample component
-│   │   └── deployment.yaml           # K8s deployment manifest
-│   └── templates/                    # Software templates
-│       └── favorite-animal/          # Example template
-│           └── template.yaml
-├── docs/                             # Documentation files
-├── docker/                           # Docker-related files
-├── app-config.yaml                   # Main Backstage config (base)
-├── app-config.catalog.yaml           # Backend-catalog overrides (port 7008)
-├── app-config.main.yaml              # Backend-main overrides (port 7007)
-├── app-config.frontend.yaml          # Frontend-specific (nginx proxy)
-├── app-config.docker.yaml            # Docker-specific config
-├── app-config.production.yaml        # Production config
-├── Dockerfile.backend                # Backend multi-stage build
-├── Dockerfile.frontend               # Frontend build
-├── docker-compose.yml                # Podman/Docker compose
-├── catalog-info.yaml                 # Backstage catalog descriptor
-├── .env.example                      # Environment variables template
-├── README.md                         # User-facing documentation
-└── AGENTS.md                         # This file (technical guide)
+│   │   │   ├── index.ts        # Catalog-specific backend config
+│   │   │   └── transformers.ts # GitHub org transformers
+│   │   └── package.json        # Catalog backend dependencies
+│   │
+│   └── backend-common/         # Shared backend utilities
+│       ├── src/
+│       │   ├── extensions/     # Backend extensions
+│       │   │   └── permissionsPolicyExtension.ts
+│       │   ├── services/       # Shared services
+│       │   │   └── discoveryService.ts
+│       │   └── utils/          # Utility functions
+│       │       └── runPeriodically.ts
+│       └── package.json        # Common dependencies
+│
+├── app-config.yaml             # Main application configuration
+├── docker-compose.yml          # Multi-service Docker setup
+├── package.json                # Root monorepo configuration
+└── yarn.lock                   # Yarn Berry lockfile
 ```
 
-## 🏗️ Multi-Backend Architecture
+## 🔧 Development Environment Setup
 
-### Overview
+### Prerequisites
 
-This project implements a **microservices architecture** with two independent backends that communicate via a custom **Discovery Service**, plus a **shared code package** for common utilities:
+- Node.js (20 or 22)
+- Yarn Berry v4.4.1
+- Podman & Podman Compose (for containerized development)
+- PostgreSQL (via Podman)
 
-#### 0. **backend-common** (Shared Library)
-**Purpose:** DRY principle - avoid code duplication between backends
+### Quick Start
 
-**What's shared:**
-- `permissionsPolicyExtension.ts` - Custom RBAC policy (used by both backends)
-- `discoveryService.ts` - Custom Discovery Service for multi-backend communication
-- `runPeriodically.ts` - Utility for periodic tasks
+```bash
+# Install dependencies
+yarn install
 
-**Package name:** `@internal/backend-common`
+# Set up environment (copy and configure .env files)
+cp .env.example .env
+# Edit .env with your actual values
 
-**Usage:**
-```typescript
-// In backend-catalog or backend-main
-import { 
-  permissionsPolicyExtension, 
-  customDiscoveryServiceFactory,
-  runPeriodically 
-} from '@internal/backend-common';
+# Start all services via Podman Compose
+yarn docker:up:build
 
-backend.add(customDiscoveryServiceFactory);
-backend.add(permissionsPolicyExtension);
+# Or start individual services
+yarn start         # Frontend (port 3000)
+yarn build:backend # Build backends
+# Then run backends individually if needed
 ```
 
-**Why this matters:**
-- ✅ Single source of truth for shared logic
-- ✅ Easier maintenance (update once, applies everywhere)
-- ✅ Consistent behavior across backends
-- ✅ Follows monorepo best practices
-- ✅ Scalable - new backends just import and use
+### Available Scripts
 
-#### 1. **backend-catalog** (Port 7008)
-**Responsibilities:**
-- Catalog entities management (Components, Systems, APIs, etc)
-- GitHub PAT integration (repository discovery)
-- GitHub App integration (organization, teams, users)
-- Custom transformers (`myTeamTransformer`, `myUserTransformer`)
-- Custom Discovery Service (from backend-common)
+Based on analysis of package.json:
 
-**Key Files:**
-- `packages/backend-catalog/src/index.ts` - Main entry with Catalog plugins
-- `packages/backend-catalog/src/transformers.ts` - GitHub org entity transformers
+```bash
+# Development
+yarn dev                    # Alias for start
+yarn start                  # Start frontend dev server
 
-**Plugins:**
-- `@backstage/plugin-catalog-backend`
-- `@backstage/plugin-catalog-backend-module-github`
-- `@backstage/plugin-catalog-backend-module-github-org`
+# Building
+yarn build                  # Build current package
+yarn build:backend          # Build backend-main and backend-catalog
+yarn build:backend-main     # Build backend-main
+yarn build:backend-catalog  # Build backend-catalog
+yarn build:all              # Build all packages
 
-#### 2. **backend-main** (Port 7007)
-**Responsibilities:**
-- Authentication (GitHub OAuth + Guest)
-- Scaffolder (software templates)
-- TechDocs (documentation)
-- Search (with PostgreSQL)
-- Kubernetes integration
-- Custom Permission Policy
-- Notifications + Signals
-- Proxy plugin (for frontend requests)
-- Custom Discovery Service (from backend-common)
+# Testing
+yarn test                   # Run tests
+yarn test:all               # Run tests with coverage
+yarn test:e2e               # Run Playwright e2e tests
 
-**Key Files:**
-- `packages/backend-main/src/index.ts` - Main entry with all plugins
-- `packages/backend-common/src/extensions/permissionsPolicyExtension.ts` - Shared custom RBAC policy
-- `packages/backend-common/src/services/discoveryService.ts` - Shared discovery service
+# Code Quality
+yarn lint                   # Lint since origin/main
+yarn lint:all               # Lint all files
+yarn lint:fix               # Fix linting issues
+yarn type-check             # TypeScript type checking
+yarn type-check:watch       # Watch mode type checking
+yarn format                 # Format code with Prettier
+yarn format:check           # Check formatting
+yarn quality:check          # Lint + type-check + format check
+yarn quality:fix            # Fix linting and formatting
+yarn validate               # Quality check + tests
+yarn validate:ci            # Full CI validation
 
-**Plugins:**
-- `@backstage/plugin-auth-backend`
-- `@backstage/plugin-scaffolder-backend`
-- `@backstage/plugin-techdocs-backend`
-- `@backstage/plugin-search-backend`
-- `@backstage/plugin-kubernetes-backend`
-- `@backstage/plugin-permission-backend`
-- `@backstage/plugin-notifications-backend`
-- `@backstage/plugin-signals-backend`
-- `@backstage/plugin-proxy-backend`
+# Docker (Podman)
+yarn docker:build           # Build all containers
+yarn docker:build:frontend  # Build frontend container
+yarn docker:build:backend   # Build backend containers
+yarn docker:build:main      # Build backend-main container
+yarn docker:build:catalog   # Build backend-catalog container
+yarn docker:up              # Start containers
+yarn docker:up:build        # Build and start containers
+yarn docker:down            # Stop containers
+yarn docker:logs            # View container logs
 
-### Discovery Service Pattern
+# Utilities
+yarn clean                  # Clean build artifacts
+yarn new                    # Create new Backstage component
+yarn setup                  # Initial setup
+yarn setup:complete         # Complete setup with validation
+```
 
-**Both backends use the shared Custom Discovery Service** from `@internal/backend-common`.
+## 🎨 Code Patterns & Conventions
 
-The Discovery Service maps plugin IDs to their backend service URLs, enabling **direct service-to-service communication** without HTTP proxy overhead. It has a dual responsibility:
+### Frontend Patterns
 
-1. **Internal URLs** (`getBaseUrl`): Backend-to-backend communication (e.g., `http://backend-main:7007`)
-2. **External URLs** (`getExternalBaseUrl`): Browser-accessible URLs for OAuth, webhooks (e.g., `http://localhost:3000`)
-
-#### 📐 Architecture Overview
+#### Custom Hooks
 
 ```typescript
-// packages/backend-common/src/services/discoveryService.ts
+// packages/app/src/hooks/useResourceCounts.ts
+import { useApi } from '@backstage/core-plugin-api';
+import { catalogApiRef } from '@backstage/plugin-catalog-react';
+import { useAsync } from 'react-use';
 
-// ===========================
-// 1. CENTRALIZED CONFIGURATION
-// ===========================
-// Plugins hosted on backend-catalog (port 7008)
-const CATALOG_PLUGINS = ['catalog'] as const;
+export interface SystemResourceCount {
+  whatsapp: number;
+  learningResources: number;
+  socialResources: number;
+  total: number;
+}
 
-// Plugins hosted on backend-main (port 7007)
-const MAIN_PLUGINS = [
-  'auth', 'proxy', 'scaffolder', 'techdocs', 'search', 
-  'kubernetes', 'permission', 'notifications', 'signals'
-] as const;
+export function useResourceCounts(): {
+  counts: SystemResourceCount | undefined;
+  loading: boolean;
+  error: Error | undefined;
+} {
+  const catalogApi = useApi(catalogApiRef);
 
-// Default service URLs (environment variables override these)
-const DEFAULT_URLS = {
-  catalog: 'http://localhost:7008',
-  main: 'http://localhost:7007',
-  external: 'http://localhost:7007',  // Fallback for external access
+  const { value, loading, error } = useAsync(async () => {
+    // Implementation using Backstage catalog API
+  }, []);
+
+  return { counts: value, loading, error };
+}
+```
+
+#### Material-UI Components with Custom Theme
+
+```typescript
+// packages/app/src/components/home/CodaquiWelcomeCard.tsx
+import { Box, Card, CardContent, Typography } from '@material-ui/core';
+import { makeStyles } from '@material-ui/core/styles';
+
+const useStyles = makeStyles(theme => ({
+  card: {
+    height: '100%',
+  },
+  highlight: {
+    color: theme.palette.primary.main, // Uses custom Codaqui green
+    fontWeight: 'bold',
+  },
+}));
+
+export const CodaquiWelcomeCard = (): JSX.Element => {
+  const classes = useStyles();
+
+  return (
+    <Card className={classes.card}>
+      <CardContent>
+        <Typography variant="h5" component="h2" gutterBottom>
+          👋 Bem-vindo à Comunidade Codaqui!
+        </Typography>
+        <Typography variant="body1" paragraph>
+          Este é o{' '}
+          <span className={classes.highlight}>portal centralizado</span> de
+          recursos da Codaqui.
+        </Typography>
+      </CardContent>
+    </Card>
+  );
 };
+```
 
-// ===========================
-// 2. TYPE SAFETY
-// ===========================
-type CatalogPlugin = typeof CATALOG_PLUGINS[number];  // 'catalog'
-type MainPlugin = typeof MAIN_PLUGINS[number];        // 'auth' | 'proxy' | ...
-type PluginId = CatalogPlugin | MainPlugin;
+#### Custom Theme Configuration
 
-interface DiscoveryConfig {
-  externalBaseUrl: string;    // From backend.baseUrl config
-  catalogServiceUrl: string;  // From CATALOG_SERVICE_URL env
-  mainServiceUrl: string;     // From MAIN_SERVICE_URL env
-  logger: Logger;             // Backstage logger service
-}
+```typescript
+// packages/app/src/theme/codaquiTheme.ts
+import { createTheme } from '@material-ui/core/styles';
 
-// ===========================
-// 3. DISCOVERY IMPLEMENTATION
-// ===========================
-class CustomDiscoveryService implements DiscoveryService {
-  private config: DiscoveryConfig;
-
-  constructor(config: DiscoveryConfig) {
-    this.config = config;
-    // Log startup configuration
-    this.config.logger.info('📋 Discovery configuration loaded', {
-      externalBaseUrl: config.externalBaseUrl,
-      catalogServiceUrl: config.catalogServiceUrl,
-      mainServiceUrl: config.mainServiceUrl,
-    });
-  }
-
-  // Internal service-to-service URLs (backend-to-backend)
-  async getBaseUrl(pluginId: string): Promise<string> {
-    this.validatePluginId(pluginId);
-    const baseUrl = this.getServiceUrl(pluginId as PluginId);
-    const fullUrl = `${baseUrl}/api/${pluginId}`;
-    
-    this.config.logger.debug(`🔍 Internal URL for ${pluginId}: ${fullUrl}`);
-    return fullUrl;
-  }
-
-  // External browser-accessible URLs (for OAuth, webhooks)
-  async getExternalBaseUrl(pluginId: string): Promise<string> {
-    this.validatePluginId(pluginId);
-    const fullUrl = `${this.config.externalBaseUrl}/api/${pluginId}`;
-    
-    this.config.logger.debug(`🌐 External URL for ${pluginId}: ${fullUrl}`);
-    return fullUrl;
-  }
-
-  // Helper: Route plugin to correct backend service
-  private getServiceUrl(pluginId: PluginId): string {
-    if ((CATALOG_PLUGINS as readonly string[]).includes(pluginId)) {
-      return this.config.catalogServiceUrl;
-    }
-    return this.config.mainServiceUrl;
-  }
-
-  // Helper: Validate plugin exists in configuration
-  private validatePluginId(pluginId: string): void {
-    const allPlugins = [...CATALOG_PLUGINS, ...MAIN_PLUGINS];
-    if (!allPlugins.includes(pluginId as PluginId)) {
-      this.config.logger.error(`❌ Unknown plugin: ${pluginId}`);
-      throw new Error(
-        `No service URL configured for plugin: ${pluginId}. ` +
-        `Available plugins: ${allPlugins.join(', ')}`
-      );
-    }
-  }
-}
-
-// ===========================
-// 4. SERVICE FACTORY
-// ===========================
-export const customDiscoveryServiceFactory = createServiceFactory({
-  service: coreServices.discovery,
-  deps: {
-    config: coreServices.rootConfig,
-    logger: coreServices.rootLogger,
+export const codaquiTheme = createTheme({
+  palette: {
+    primary: {
+      main: '#57B593', // Codaqui green
+    },
+    secondary: {
+      main: '#3A2F39', // Codaqui dark gray
+    },
   },
-  async factory({ config, logger }) {
-    // Create logger child for discovery service
-    const discoveryLogger = logger.child({ service: 'discovery' });
-
-    // Read configuration from app-config files
-    const catalogServiceUrl = 
-      process.env.CATALOG_SERVICE_URL || 
-      config.getOptionalString('catalog.serviceUrl') || 
-      DEFAULT_URLS.catalog;
-
-    const mainServiceUrl = 
-      process.env.MAIN_SERVICE_URL || 
-      config.getOptionalString('main.serviceUrl') || 
-      DEFAULT_URLS.main;
-
-    // External URL: backend.baseUrl (Docker: localhost:3000) OR fallback to main service
-    const externalBaseUrl = 
-      config.getOptionalString('backend.baseUrl') || 
-      mainServiceUrl;
-
-    // Warn if using fallback (means backend.baseUrl not configured)
-    if (!config.getOptionalString('backend.baseUrl')) {
-      discoveryLogger.warn(
-        '⚠️ backend.baseUrl not set, using mainServiceUrl as fallback. ' +
-        'OAuth and webhooks may not work correctly.'
-      );
-    }
-
-    return new CustomDiscoveryService({
-      externalBaseUrl,
-      catalogServiceUrl,
-      mainServiceUrl,
-      logger: discoveryLogger,
-    });
-  },
+  // Additional theme customizations...
 });
 ```
 
-#### 🎯 Key Features
+### Backend Patterns
 
-**Why Custom Discovery Service?**
-- ✅ **Dual URL routing**: Separate internal (service-to-service) and external (browser) URLs
-- ✅ **Zero overhead**: Direct backend-to-backend calls (no proxy hop)
-- ✅ **Kubernetes ready**: Works with K8s service names (e.g., `backend-catalog.namespace.svc.cluster.local`)
-- ✅ **Type-safe**: TypeScript ensures plugin IDs are valid at compile time
-- ✅ **Maintainable**: Centralized arrays (add plugin once, not 14 times)
-- ✅ **Observable**: Structured logging with levels (info/debug/error/warn)
-- ✅ **Debuggable**: Logger filter configuration per service
-
-#### 🔧 How to Add a New Plugin
-
-When adding a plugin to a backend, update the appropriate array:
+#### Backend Module Registration
 
 ```typescript
-// Adding 'events' plugin to backend-main
-const MAIN_PLUGINS = [
-  'auth', 'proxy', 'scaffolder', 'techdocs', 'search',
-  'kubernetes', 'permission', 'notifications', 'signals',
-  'events',  // ← Add here
-] as const;
+// packages/backend-main/src/index.ts
+import { createBackend } from '@backstage/backend-defaults';
+import {
+  coreServices,
+  createBackendModule,
+} from '@backstage/backend-plugin-api';
 
-// TypeScript automatically includes it in type checking
-// No other changes needed - routing happens automatically
+const backend = createBackend();
+
+// Custom startup logging module
+const logStartupConfig = createBackendModule({
+  pluginId: 'app',
+  moduleId: 'startup-logger',
+  register(env) {
+    env.registerInit({
+      deps: { logger: coreServices.logger },
+      async init({ logger }) {
+        logger.info('🚀 Backend Main starting up');
+        // Log environment configuration
+      },
+    });
+  },
+});
+
+backend.add(logStartupConfig);
+
+// Add Backstage plugins
+backend.add(import('@backstage/plugin-auth-backend'));
+backend.add(import('@backstage/plugin-catalog-backend'));
+// ... more plugins
+
+backend.start();
 ```
 
-**What you DON'T need to do:**
-- ❌ Update serviceMap (no longer exists)
-- ❌ Repeat URLs 14 times
-- ❌ Modify getBaseUrl or getExternalBaseUrl methods
-- ❌ Update validation logic
-
-#### 📊 Logging & Debugging
-
-**Enable debug logging** in `app-config.docker.yaml`:
-
-```yaml
-backend:
-  logger:
-    filters:
-      discovery:
-        level: debug  # Shows all URL routing decisions
-```
-
-**Log levels:**
-- **info**: Startup configuration summary
-- **debug**: Every URL resolution (internal/external)
-- **warn**: Missing configuration or fallbacks
-- **error**: Invalid plugin IDs or failures
-
-**Example debug output:**
-```
-📋 Discovery configuration loaded externalBaseUrl="http://localhost:3000" ✅
-🔍 Internal URL for catalog: http://backend-catalog:7008/api/catalog
-🌐 External URL for auth: http://localhost:3000/api/auth
-⚠️ backend.baseUrl not set, using mainServiceUrl as fallback
-```
-
-#### ⚙️ Configuration Guide
-
-**Environment Variables** (highest priority):
-```bash
-CATALOG_SERVICE_URL=http://backend-catalog:7008  # Catalog backend
-MAIN_SERVICE_URL=http://backend-main:7007        # Main backend
-```
-
-**App Config Files** (merged in order):
-```yaml
-# app-config.yaml (base)
-backend:
-  baseUrl: http://localhost:7007  # Default
-
-# app-config.docker.yaml (Docker override)
-backend:
-  baseUrl: http://localhost:3000  # NGINX proxy for external access ✅
-
-# app-config.main.yaml (backend-main)
-# (no baseUrl - inherits from docker config)
-
-# app-config.catalog.yaml (backend-catalog)
-# (no baseUrl - inherits from docker config)
-```
-
-**Smart Fallback Logic:**
-```typescript
-// If backend.baseUrl is NOT set:
-externalBaseUrl = mainServiceUrl  // Falls back to backend-main internal URL
-// Logs warning: ⚠️ backend.baseUrl not set, OAuth may not work
-
-// If backend.baseUrl IS set (Docker):
-externalBaseUrl = 'http://localhost:3000'  // Uses NGINX proxy ✅
-```
-
-#### 🐛 Common Troubleshooting
-
-**Issue**: OAuth fails with internal URL (e.g., `http://backend-main:7007`)
-
-**Diagnosis**:
-```bash
-# Check logs for Discovery Service configuration
-podman logs codaqui-portal-backend-main 2>&1 | grep "Discovery configuration"
-
-# Should show:
-📋 Discovery configuration loaded externalBaseUrl="http://localhost:3000" ✅
-
-# If shows internal URL:
-📋 Discovery configuration loaded externalBaseUrl="http://backend-main:7007" ❌
-# Then backend.baseUrl is being overridden incorrectly
-```
-
-**Fix**: Check backend-specific configs don't override `backend.baseUrl`:
-```yaml
-# app-config.main.yaml - ✅ GOOD
-# (no baseUrl - inherits from app-config.docker.yaml)
-
-# app-config.main.yaml - ❌ BAD
-backend:
-  baseUrl: http://localhost:7007  # Overrides docker config!
-```
-
-**Issue**: Plugin not found error
-
-**Diagnosis**:
-```
-❌ Unknown plugin: my-new-plugin
-Available plugins: catalog, auth, proxy, scaffolder, ...
-```
-
-**Fix**: Add plugin to appropriate array:
-```typescript
-const MAIN_PLUGINS = [
-  'auth', 'proxy', 'scaffolder',
-  'my-new-plugin',  // ← Add here
-] as const;
-```
-
-### Configuration Structure
-
-```yaml
-# app-config.yaml (base - shared by both backends)
-app:
-  title: Codaqui Portal
-  baseUrl: http://localhost:3000
-backend:
-  baseUrl: http://localhost:7007  # Main backend
-  database: # PostgreSQL shared
-integrations:
-  github:
-    - host: github.com
-      token: ${GITHUB_TOKEN}  # PAT for repo access
-      # GitHub App loaded from env vars (app-config.docker.yaml)
-catalog:
-  providers:
-    github:
-      codaquiPortal:
-        organization: 'codaqui'
-      githubOrg:
-        id: 'production'
-        orgUrl: 'https://github.com/codaqui'
-# ... techdocs, auth, scaffolder configs ...
-
-# app-config.catalog.yaml (backend-catalog overrides)
-backend:
-  listen:
-    port: 7008  # Override port
-  cors:
-    origin:
-      - http://localhost:3000
-      - http://localhost:7007
-
-# app-config.main.yaml (backend-main overrides)
-backend:
-  auth:
-    keys:
-      - secret: ${BACKEND_SECRET}
-  cors:
-    origin:
-      - http://backend-catalog:7008
-      - http://localhost:7008
-      - http://localhost:3000
-
-# Note: No proxy needed - Custom DiscoveryService handles direct backend-to-backend communication
-```
-
-### API Gateway Architecture
-
-The portal uses **NGINX as API Gateway** in production (Ingress/NGINX) to hide internal backend architecture.
-
-#### 🔐 Production - Kubernetes (Recommended)
-
-Production will be deployed to Kubernetes. The staging/prod setup uses an API Gateway (Ingress/NGINX) to route traffic to internal services and terminate TLS. This setup keeps parity with Docker Compose routing while leveraging Kubernetes features such as service discovery, rolling updates, autoscaling and centralized secrets.
-
-```
-Browser -> Ingress / Load Balancer -> Ingress Controller / NGINX -> Backends (ClusterIP Services)
-┌────────────────────────────────────────┐
-│   Browser (https://portal.codaqui.dev) │
-└──────────────┬─────────────────────────┘
-               │
-               ▼
-    ┌────────────────────────────────┐
-    │ Ingress Controller / NGINX     │
-    │ - TLS termination               │
-    │ - Reverse proxy / routing       │
-    │ - Routes /api/catalog -> svc:7008
-    │ - Routes /api/* -> svc:7007     │
-    └──────────────┬─────────────────┘
-                   │
-            ┌──────▼──────┐   ┌──────▼──────┐
-            │ backend-main│   │ backend-catalog│
-            │ Deployment  │   │ Deployment    │
-            │ svc:7007    │   │ svc:7008      │
-            └─────────────┘   └───────────────┘
-```
-
-**Kubernetes specifics:**
-- Store secrets in `Secret` resources and bind them via `envFrom: secretRef` to deployments.
-- Use `ConfigMap` for non-sensitive configuration (app-config.production).
-- Set resource requests/limits for each deployment to avoid OOMKills and overcommit.
-- Use `HorizontalPodAutoscaler` for `backend-main` and `frontend` if needed.
-- Use `NetworkPolicy` to restrict internal communication between services where needed.
-- Add `Readiness` and `Liveness` probes for health checks (e.g. `/healthcheck`).
-
-**K8s Manifest Example (high-level):**
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: backend-main
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: backend-main
-  template:
-    metadata:
-      labels:
-        app: backend-main
-    spec:
-      containers:
-        - name: backend-main
-          image: codaqui/backstage-backend:latest
-          envFrom:
-            - secretRef: { name: backstage-secrets }
-          readinessProbe:
-            httpGet:
-              path: /healthcheck
-              port: 7007
-          livenessProbe:
-            httpGet:
-              path: /healthcheck
-              port: 7007
-```
-
-**Ingress (example):**
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: backstage-ingress
-spec:
-  rules:
-    - host: portal.codaqui.dev
-      http:
-        paths:
-          - path: /api/catalog
-            pathType: Prefix
-            backend:
-              service:
-                name: backend-catalog
-                port:
-                  number: 7008
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: backend-main
-                port:
-                  number: 7007
-```
-
-**Benefits of Kubernetes:**
-- ✅ Automatic scaling & rolling deploys  
-- ✅ Centralized secrets & config  
-- ✅ Observability, metrics and healthchecks  
-- ✅ Better security & networking primitives (NetworkPolicy)
-
-**Testing in Kubernetes (local):**
-- Use `kind` or `minikube` to create a local cluster and test manifests.
-- Example commands:
-```bash
-# Create a kind cluster
-kind create cluster --name codaqui
-
-# Load images built locally (if using kind)
-kind load docker-image codaqui/backstage-backend:latest --name codaqui
-
-# Apply manifests
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/secrets.yaml
-kubectl apply -f k8s/deployments.yaml
-kubectl apply -f k8s/services.yaml
-kubectl apply -f k8s/ingress.yaml
-
-# Port-forwarding for quick tests
-kubectl port-forward svc/backend-main 7007:7007 -n codaqui
-kubectl port-forward svc/backend-catalog 7008:7008 -n codaqui
-```
-
-**Notes:**
-- We are currently converging production deployment towards Kubernetes; use Docker Compose for local dev and `k8s` manifests under `docker/`/`k8s/` (or `deploy/`) for production deployment testing. 
-
-#### 💻 Development (Local) - Docker/Podman Compose (Recommended)
-
-This project uses a container-first approach for local development. We recommend using Podman or Docker Compose to run the full stack locally. Compose ensures the environment closely mirrors production and keeps local development consistent across machines.
-
-```
-# Browser → NGINX (frontend) → Backends
-┌─────────────────────────────────────┐
-│   Browser (localhost:3000)          │
-│   All requests: /api/*              │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-       ┌────────────────────┐
-       │ NGINX (frontend)    │
-       │ Routes /api/* → :7007│
-       │ Routes /api/catalog → :7008│
-       └─────┬─────────┬──────┘
-             │         │
-             │         │
-       ┌─────▼────┐┌───▼────┐
-       │ backend  ││ backend│
-       │ main :7007││ catalog:7008│
-       └──────────┘└────────┘
-```
-
-**Configuration Files:**
-- `docker-compose.yml` - Compose file that brings up frontend (NGINX), `backend-main`, and `backend-catalog` with the right environment and `app-config` settings.
-- `app-config.docker.yaml` - Docker-specific config used by both backends via Compose
-
-**Why prefer Compose locally?**
-- ✅ Mirrors production (containerized networking, service names)  
-- ✅ Simpler developer onboarding (a single `podman/docker compose up`)  
-- ✅ Avoids having to manage multiple terminals and service discovery manually  
-- ✅ Works well with the NGINX gateway to test integrated flows
-
-#### Configuration Files Summary
-
-| File | Purpose | Used In |
-|------|---------|---------|
-| `app-config.yaml` | Base config (backend: :7007) | Local dev |
-| `app-config.frontend.yaml` | NGINX proxy (backend: :3000) | Docker |
-| `app-config.main.yaml` | Backend Main config (CORS, auth) | Both |
-| `app-config.catalog.yaml` | Backend Catalog config (CORS, auth) | Both |
-| `docker/default.conf.template` | NGINX routing rules | Docker |
-| `docker/inject-config.sh` | Runtime config (no internal URLs) | Docker |
-
-### Running Backends
-
-**Local Development (recommended - Docker/Podman Compose):**
-Use Podman/Docker Compose for a near-production environment that mirrors real service discovery and the NGINX gateway.
-
-```bash
-# Start everything (frontend + backends)
-podman compose --profile standard up -d
-
-# Rebuild and start
-podman compose --profile standard up --build
-
-# Stop
-podman compose down
-```
-
-**View logs (compose)**
-```bash
-podman compose logs -f backend-catalog
-podman compose logs -f backend-main
-podman compose logs -f frontend
-```
-
-### Docker Build Strategy
-
-The `Dockerfile.backend` uses **build arguments** to support both backends:
-
-```dockerfile
-# Build arguments
-ARG BACKEND_PACKAGE=backend  # Can be: backend-catalog or backend-main
-ARG CONFIG_FILE=app-config.yaml  # Comma-separated configs
-ARG ENABLE_K8S=false
-
-# Copy and build specific backend
-COPY packages/${BACKEND_PACKAGE} ./packages/${BACKEND_PACKAGE}
-RUN yarn workspace ${BACKEND_PACKAGE} build
-```
-
-**Build examples:**
-```bash
-# Backend Catalog
-podman build \
-  -f Dockerfile.backend \
-  --build-arg BACKEND_PACKAGE=backend-catalog \
-  --build-arg CONFIG_FILE=app-config.yaml,app-config.docker.yaml,app-config.catalog.yaml \
-  -t codaqui/backstage-catalog .
-
-# Backend Main
-podman build \
-  -f Dockerfile.backend \
-  --build-arg BACKEND_PACKAGE=backend-main \
-  --build-arg CONFIG_FILE=app-config.yaml,app-config.docker.yaml,app-config.main.yaml \
-  -t codaqui/backstage-main .
-```
-
-### GitHub Integration (Dual Mode)
-
-The project uses **two types** of GitHub integration:
-
-1. **Personal Access Token (PAT)** - `app-config.yaml`
-   - For basic repository operations (clone, read files)
-   - Used by catalog discovery
-   - Set via `GITHUB_TOKEN` environment variable
-
-2. **GitHub App** - `app-config.docker.yaml`
-   - For organization-level operations (users, teams, webhooks)
-   - Credentials loaded from environment variables:
-     - `GITHUB_ORG_APP_ID`
-     - `GITHUB_ORG_CLIENT_ID`
-     - `GITHUB_ORG_CLIENT_SECRET`
-     - `GITHUB_ORG_WEBHOOK_URL`
-     - `GITHUB_ORG_WEBHOOK_SECRET`
-     - `GITHUB_ORG_PRIVATE_KEY`
-
-**Configuration:**
-```yaml
-# app-config.yaml
-integrations:
-  github:
-    - host: github.com
-      token: ${GITHUB_TOKEN}  # PAT
-      # GitHub App loaded from app-config.docker.yaml
-
-# app-config.docker.yaml
-integrations:
-  github:
-    - host: github.com
-      apps:
-        - appId: ${GITHUB_ORG_APP_ID}
-          clientId: ${GITHUB_ORG_CLIENT_ID}
-          clientSecret: ${GITHUB_ORG_CLIENT_SECRET}
-          webhookUrl: ${GITHUB_ORG_WEBHOOK_URL}
-          webhookSecret: ${GITHUB_ORG_WEBHOOK_SECRET}
-          privateKey: ${GITHUB_ORG_PRIVATE_KEY}
-```
-
-### Custom Transformers (backend-catalog)
-
-Located in `packages/backend-catalog/src/transformers.ts`:
+#### Custom Transformers
 
 ```typescript
+// packages/backend-catalog/src/transformers.ts
+import type {
+  TeamTransformer,
+  UserTransformer,
+} from '@backstage/plugin-catalog-backend-module-github';
+
 export const myTeamTransformer: TeamTransformer = async (team, ctx) => {
   const backstageTeam = await defaultOrganizationTeamTransformer(team, ctx);
-  if (backstageTeam) {
+  if (backstageTeam && backstageTeam.spec) {
+    backstageTeam.metadata.description = 'Integrated via GitHub Org Provider';
     backstageTeam.metadata.labels = {
       ...backstageTeam.metadata.labels,
       'github-org-integration': 'true',
@@ -819,1206 +288,234 @@ export const myTeamTransformer: TeamTransformer = async (team, ctx) => {
   }
   return backstageTeam;
 };
+```
 
-export const myUserTransformer: UserTransformer = async (user, ctx) => {
-  const backstageUser = await defaultUserTransformer(user, ctx);
-  if (backstageUser) {
-    backstageUser.metadata.labels = {
-      ...backstageUser.metadata.labels,
-      'github-org-integration': 'true',
-    };
+#### Advanced Permission System
+
+```typescript
+// packages/backend-common/src/extensions/permissionsPolicyExtension.ts
+const SPECIAL_GROUPS = {
+  guests: ['user:default/guest', 'group:default/guests'],
+  conselho: ['group:default/conselho'],
+} as const;
+
+const GROUP_PERMISSIONS: GroupPermissions = {
+  conselho: ['announcement.entity.*'],
+  guests: ['*.read'],
+} as const;
+
+class CustomPermissionPolicy implements PermissionPolicy {
+  async handle(
+    request: PolicyQuery,
+    user?: PolicyQueryUser,
+  ): Promise<PolicyDecision> {
+    // Complex permission logic with wildcard support
+    // Group-based permissions, ownership checks, etc.
   }
-  return backstageUser;
-};
-```
-
-### Custom Permission Policy (Shared in backend-common)
-
-Located in `packages/backend-common/src/extensions/permissionsPolicyExtension.ts`:
-
-**Used by both backend-catalog and backend-main** via `@internal/backend-common` import.
-
-Implements role-based access control:
-- **Unauthenticated users**: Read-only catalog access
-- **Guest users**: Limited permissions
-- **Authenticated users**: Full read access
-- **Resource owners**: Can modify/delete their resources
-
-### 🔧 Minimum Required Plugins per Backend
-
-When splitting backends in a microservices architecture, each backend needs **minimum infrastructure plugins** to function in the ecosystem.
-
-#### 📦 Backend Exposing APIs (needs to validate callers)
-
-**Always Required:**
-```typescript
-// Validate JWT tokens from other services
-backend.add(import('@backstage/plugin-auth-backend'));
-
-// Enforce permission policies
-backend.add(import('@backstage/plugin-permission-backend'));
-
-// Auth providers (at least the ones that issue tokens)
-backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
-backend.add(import('@backstage/plugin-auth-backend-module-github-provider'));
-```
-
-**Why?** Any backend exposing HTTP APIs must validate:
-1. **Who** is calling (authentication via JWT tokens)
-2. **What** they can do (authorization via permission policies)
-
-#### 🔌 Backend Consuming APIs (needs to find other services)
-
-**Always Required:**
-```typescript
-// Custom Discovery Service
-class CustomDiscoveryService implements DiscoveryService {
-  private serviceMap = new Map([
-    ['catalog', 'http://backend-catalog:7008'],
-    ['auth', 'http://backend-main:7007'],
-    // ... map plugin ID → service URL
-  ]);
 }
 ```
 
-**Why?** Backends need to know where other services are located to make inter-service calls.
+## 🔌 Key Backstage Plugins & Integrations
 
-#### 🎯 Rule of Thumb
+### Core Plugins
 
-| Backend Type | Required Plugins |
-|--------------|------------------|
-| **Exposes APIs** | auth + permission + discovery |
-| **Consumes APIs** | discovery |
-| **Both** | auth + permission + discovery |
+- **Catalog**: Entity management and discovery
+- **Auth**: GitHub OAuth + Guest provider
+- **Scaffolder**: Template-based project creation
+- **TechDocs**: Documentation hosting
+- **Search**: Full-text search with PostgreSQL backend
+- **Kubernetes**: Cluster integration (optional)
+- **Notifications**: User notifications system
+- **Announcements**: Community announcements
 
-#### ⚠️ Common Mistake
+### Custom Extensions
 
-Forgetting to add auth/permission plugins to a backend that exposes APIs will result in:
-- ❌ All requests return `401 Unauthorized`
-- ❌ Even authenticated users can't access the API
-- ❌ JWT tokens are not validated
+- **Custom Discovery Service**: Service-to-service communication
+- **GitHub Org Integration**: Team/user sync with custom transformers
+- **Advanced Permission Policy**: Group-based permissions with wildcards
+- **Codaqui Theme**: Custom Material-UI theme
+- **Resource Counting**: Dynamic resource statistics
 
-**Example from this project:**
-- `backend-catalog` initially only had catalog plugins
-- It was returning 401 because it couldn't validate tokens
-- **Solution:** Added auth + permission plugins to validate tokens from backend-main
+## 🗄️ Database & Data Models
 
-#### 🔐 How Inter-Backend Authentication Works
+### PostgreSQL Schema
 
-```
-1. User → Backend Main
-   POST /api/auth/guest/refresh
-   ← JWT token (signed by Main's auth plugin)
+- **Search Index**: Full-text search data
+- **User Sessions**: Authentication state
+- **Catalog Entities**: Backstage catalog data
+- **Audit Logs**: Permission and action logs
 
-2. User → Backend Catalog (via NGINX)
-   GET /api/catalog/entities
-   Header: Authorization: Bearer <JWT token>
-   
-3. Backend Catalog validates:
-   - Verifies JWT signature (auth plugin checks Main's public key)
-   - Validates permissions (permission plugin checks policies)
-   - If valid: Returns data
-   - If invalid: Returns 401
-```
+### Key Entity Types
 
-#### 📊 Our Backend Configuration
+- **Components**: Software projects and services
+- **Users**: Community members (GitHub integration)
+- **Groups**: Teams and organizations
+- **Systems**: Logical groupings
+- **Resources**: Learning materials, social links, etc.
 
-**Backend Main (7007):**
-```typescript
-// Infrastructure (required)
-backend.add(import('@backstage/plugin-auth-backend'));
-backend.add(import('@backstage/plugin-permission-backend'));
+## 🚀 Deployment & Infrastructure
 
-// Business logic
-backend.add(import('@backstage/plugin-scaffolder-backend'));
-backend.add(import('@backstage/plugin-techdocs-backend'));
-backend.add(import('@backstage/plugin-search-backend'));
-```
+### Docker Compose Setup
 
-**Backend Catalog (7008):**
-```typescript
-// Infrastructure (required) ⚠️ Added to fix 401 errors
-backend.add(import('@backstage/plugin-auth-backend'));
-backend.add(import('@backstage/plugin-permission-backend'));
+The project uses Podman Compose with profiles for different deployment scenarios:
 
-// Business logic
-backend.add(import('@backstage/plugin-catalog-backend'));
-backend.add(import('@backstage/plugin-catalog-backend-module-github'));
+- **standard**: Basic services (postgres, backend-catalog, backend-main, frontend)
+- **kubernetes**: Optional kubectl proxy for local Kubernetes testing
+
+```bash
+# Start standard services
+yarn docker:up
+
+# Start with Kubernetes integration
+CODAQUI_TESTING_WITH_KUBERNETES=true yarn docker:up
+
+# Build and start
+yarn docker:up:build
 ```
 
-### Benefits of This Architecture
-
-#### Technical Benefits
-- ✅ **Separation of Concerns**: Each backend has clear responsibilities
-- ✅ **Independent Scaling**: Scale catalog and main backends separately based on load
-- ✅ **Independent Deployment**: Deploy backends independently without downtime
-- ✅ **Isolated Failures**: Failure in one service doesn't crash the other
-- ✅ **Better Maintainability**: Smaller codebases, easier to understand and modify
-
-#### Operational Benefits
-- ✅ **Isolated Logs**: Separate logs per service for easier debugging
-- ✅ **Granular Metrics**: Monitor each service independently
-- ✅ **Easier Debugging**: Smaller surface area to investigate issues
-- ✅ **Testing Isolation**: Test services independently
-
-#### Development Benefits
-- ✅ **Team Autonomy**: Different teams can own different backends
-- ✅ **Technology Flexibility**: Can use different tools per backend if needed
-- ✅ **Faster CI/CD**: Build and test only what changed
-
-### Request Flow Example
-
-**Scenario**: User creates a new component via Scaffolder
-
-1. **Frontend** → POST `/api/scaffolder/v2/tasks` → **Backend Main**
-2. **Backend Main** processes template via Scaffolder
-3. **Scaffolder** needs to register component in catalog
-4. **Discovery Service** resolves `catalog` → `http://localhost:7008`
-5. **Backend Main** → POST `http://localhost:7008/api/catalog/entities`
-6. **Backend Catalog** receives and registers entity
-7. **Backend Catalog** → returns success
-8. **Backend Main** → returns task ID to Frontend
-9. **Frontend** polls task status until complete
-
-## 🔧 Technical Configuration
+Services include health checks and proper dependency management.
 
 ### Environment Variables
 
-Required environment variables (never commit actual values):
+Based on .env.example, key variables include:
 
 ```bash
-# GitHub Personal Access Token (for repository operations)
-GITHUB_TOKEN=your_github_pat
+# Database
+POSTGRES_HOST="postgres"
+POSTGRES_PORT="5432"
+POSTGRES_USER="backstage"
+POSTGRES_PASSWORD="change-this-password"
+POSTGRES_DB="backstage"
 
-# GitHub OAuth App (for user authentication)
-AUTH_GITHUB_CLIENT_ID=your_oauth_app_client_id
-AUTH_GITHUB_CLIENT_SECRET=your_oauth_app_client_secret
+# GitHub OAuth
+GITHUB_CLIENT_ID="your-oauth-app-client-id"
+GITHUB_CLIENT_SECRET="your-oauth-app-client-secret"
 
-# GitHub App (for organization integration)
-GITHUB_ORG_APP_ID=your_github_app_id
-GITHUB_ORG_CLIENT_ID=your_github_app_client_id
-GITHUB_ORG_CLIENT_SECRET=your_github_app_client_secret
-GITHUB_ORG_WEBHOOK_URL=https://your-domain.com/api/github/webhook
-GITHUB_ORG_WEBHOOK_SECRET=your_webhook_secret
-GITHUB_ORG_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+# GitHub App (Org Integration)
+GITHUB_ORG_APP_ID="your-github-app-id"
+GITHUB_ORG_WEBHOOK_URL="your-webhook-url-or-smee-url"
+GITHUB_ORG_CLIENT_ID="your-github-app-client-id"
+GITHUB_ORG_CLIENT_SECRET="your-github-app-client-secret"
+GITHUB_ORG_WEBHOOK_SECRET="your-webhook-secret"
+GITHUB_ORG_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nyour-private-key-content-here\n-----END RSA PRIVATE KEY-----"
 
-# Service Discovery (for inter-backend communication)
-CATALOG_SERVICE_URL=http://localhost:7008  # or http://backend-catalog:7008 in Docker
-MAIN_SERVICE_URL=http://localhost:7007     # or http://backend-main:7007 in Docker
+# Application
+NODE_ENV="development"
+BACKEND_SECRET="change-this-to-a-random-secret-in-production"
 
-# App Configuration
-APP_CONFIG_APP_BASEURL=http://localhost:3000
-APP_CONFIG_BACKEND_BASEURL=http://localhost:7007
+# Service URLs (auto-configured in Docker)
+CATALOG_SERVICE_URL="http://localhost:7008"
+MAIN_SERVICE_URL="http://localhost:7007"
 
-# Database (PostgreSQL - shared by both backends)
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=secret
-POSTGRES_DB=backstage
-
-# Node Configuration
-NODE_ENV=production
-NODE_OPTIONS=--max-old-space-size=4096
-
-# Kubernetes Testing (optional)
-CODAQUI_TESTING_WITH_KUBERNETES=false  # Set to 'true' for K8s testing mode
+# Kubernetes (optional)
+CODAQUI_TESTING_WITH_KUBERNETES="false"
 ```
 
-**Important Notes:**
-- GitHub App credentials are loaded from **environment variables only** (no YAML file)
-- Service URLs change between local development and Docker (localhost vs container names)
-- Both backends share the same PostgreSQL database
-- **OAuth Callback URL Configuration**:
-  - **Docker Compose**: Use `http://localhost:3000/api/auth/github/handler/frame` (NGINX proxy)
-  - The `backend.baseUrl` in `app-config.docker.yaml` must be `http://localhost:3000` for OAuth to work correctly
+## 🧪 Testing Strategy
 
-See `.env.example` for detailed instructions on creating GitHub OAuth App and GitHub App.
-
-#### 🔐 OAuth Configuration Troubleshooting
-
-**Problem**: GitHub OAuth redirect fails with invalid `redirect_uri` pointing to internal container name (e.g., `http://backend-main:7007`)
-
-**Root Cause**: The `backend.baseUrl` configuration determines the OAuth callback URL used by the Custom Discovery Service. When running in Docker with NGINX proxy, backends must advertise the externally accessible URL (`http://localhost:3000`), not internal container URLs.
-
-**Solution**:
-1. **Set `backend.baseUrl` in `app-config.docker.yaml`** (already configured):
-   ```yaml
-   backend:
-     baseUrl: http://localhost:3000  # NGINX proxy URL
-   ```
-
-2. **Do NOT override `backend.baseUrl` in backend-specific configs** (`app-config.catalog.yaml`, `app-config.main.yaml`) - let them inherit from `app-config.docker.yaml`
-
-3. **Configure GitHub OAuth App callback URL** as: `http://localhost:3000/api/auth/github/handler/frame`
-
-4. **Verify Discovery Service logs** show correct configuration:
-   ```
-   📋 Discovery configuration loaded externalBaseUrl="http://localhost:3000" ✅
-   ```
-
-**Architecture Flow**:
-```
-Browser → http://localhost:3000 (NGINX) → http://backend-main:7007 (internal)
-         ↑                                                              ↓
-         └─────────── OAuth Callback ──────────────────────────────────┘
-```
-
-**Config Loading Order**:
-```yaml
-# Backend-Main:
-app-config.yaml              # backend.baseUrl: http://localhost:7007
-  ↓
-app-config.docker.yaml       # backend.baseUrl: http://localhost:3000 ✅ (overrides)
-  ↓
-app-config.main.yaml         # (no baseUrl - inherits from docker)
-
-# Backend-Catalog:
-app-config.yaml              # backend.baseUrl: http://localhost:7007
-  ↓
-app-config.docker.yaml       # backend.baseUrl: http://localhost:3000 ✅ (overrides)
-  ↓
-app-config.catalog.yaml      # (no baseUrl - inherits from docker)
-```
-
-**Key Points**:
-- ✅ `backend.baseUrl` should be set **only** in `app-config.docker.yaml` for Docker environments
-- ✅ Backend-specific configs (`app-config.main.yaml`, `app-config.catalog.yaml`) should NOT override `baseUrl`
-- ✅ Custom Discovery Service uses `backend.baseUrl` for external URLs (OAuth, browser access)
-- ✅ Service-to-service communication still uses internal URLs (`http://backend-main:7007`)
-
-### Key Dependencies
-
-```json
-{
-  "@backstage/core-components": "Latest",
-  "@backstage/core-plugin-api": "Latest",
-  "@backstage/plugin-catalog": "Latest",
-  "@backstage/plugin-catalog-react": "Latest",
-  "@backstage/plugin-scaffolder": "Latest",
-  "@backstage/theme": "Latest",
-  "@material-ui/core": "^4.x",
-  "react": "^18.x",
-  "react-router-dom": "^6.x"
-}
-```
-
-### Backstage Configuration Highlights
-
-#### Catalog Providers
-
-```yaml
-# app-config.yaml
-catalog:
-  providers:
-    github:
-      providerId:
-        organization: 'codaqui'
-        catalogPath: '/catalog-info.yaml'
-        filters:
-          branch: 'main'
-          repository: '.*'
-```
-
-#### Permission Policy
-
-Custom permission policy implemented in `packages/backend/src/extensions/permissionPolicy.ts`:
-
-- Unauthenticated users: Read-only access
-- Guest users: Limited permissions
-- Authenticated users: Full read access
-- Owners: Write/delete permissions
-
-#### Authentication
-
-```yaml
-auth:
-  providers:
-    github:
-      development:
-        clientId: ${AUTH_GITHUB_CLIENT_ID}
-        clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
-```
-
-## 🎨 Design System & Branding
-
-### Codaqui Brand Colors
+### Frontend Testing
 
 ```typescript
-// Primary colors
-const codaquiGreen = '#57B593';      // Main brand color
-const codaquiDarkGray = '#3A2F39';   // Dark elements
-const codaquiLightGray = '#B5B5B5';  // Light accents
-```
-
-### Theme Configuration
-
-Located in `packages/app/src/theme/codaquiTheme.ts`:
-
-- **Light Theme**: Green primary, dark gray secondary
-- **Dark Theme**: Green primary, light gray secondary
-- **Navigation**: Dark background with green indicators
-- **Header**: Custom background (no gradient)
-
-### Logo Usage
-
-- **Full Logo** (`codaqui-full.svg`): Colorful, used in light contexts
-- **Mono Logo** (`codaqui-mono.svg`): White/gray, used in dark sidebar
-- **Icon Logo**: Small icon for favicon and mobile
-
-**Logo Components:**
-- `LogoFull.tsx`: Sidebar logo (always mono)
-- `LogoIcon.tsx`: Small icon with theme adaptation
-
-## 📝 Code Standards & Patterns
-
-### TypeScript Standards
-
-```typescript
-// ✅ GOOD: Explicit types, interfaces in types.ts
-import { WhatsAppGroup } from '../../utils';
-
-export interface WhatsAppGroup {
-  name: string;
-  title: string;
-  description: string;
-  url: string;
-  tags: string[];
-  entity: Entity;
-}
-
-// ✅ GOOD: Typed functions with return types
-export function extractWhatsAppGroupInfo(entity: Entity): WhatsAppGroup {
-  return {
-    name: entity.metadata.name,
-    title: entity.metadata.title || entity.metadata.name,
-    // ...
-  };
-}
-
-// ❌ BAD: Any types, inline interfaces
-function getData(): any { }
-```
-
-### React Component Patterns
-
-#### Components Structure
-
-```typescript
-// components/home/WhatsAppGroupsCard.tsx
-import React from 'react';
-import { useWhatsAppGroups } from '../../hooks';
-import { Card, CardContent } from '@material-ui/core';
-
-interface WhatsAppGroupsCardProps {
-  maxGroups?: number;
-}
-
-export const WhatsAppGroupsCard = ({ maxGroups = 6 }: WhatsAppGroupsCardProps) => {
-  const { groups, loading, error } = useWhatsAppGroups();
-
-  if (loading) return <LoadingIndicator />;
-  if (error) return <ErrorPanel error={error} />;
-
-  return (
-    <Card>
-      <CardContent>
-        {groups.slice(0, maxGroups).map(group => (
-          <GroupItem key={group.name} group={group} />
-        ))}
-      </CardContent>
-    </Card>
-  );
-};
-```
-
-#### Custom Hooks Pattern
-
-```typescript
-// hooks/useWhatsAppGroups.ts
-import { useApi } from '@backstage/core-plugin-api';
-import { catalogApiRef } from '@backstage/plugin-catalog-react';
-import { useAsync } from 'react-use';
-
-export function useWhatsAppGroups() {
-  const catalogApi = useApi(catalogApiRef);
-
-  const { value: groups, loading, error } = useAsync(async () => {
-    const entities = await catalogApi.getEntities({
-      filter: {
-        kind: 'Component',
-        'spec.type': 'whatsapp',
-      },
-    });
-
-    return entities.items.map(extractWhatsAppGroupInfo);
-  }, [catalogApi]);
-
-  return { groups: groups || [], loading, error };
-}
-```
-
-#### Pages Pattern
-
-```typescript
-// pages/WhatsAppGroupsPage.tsx
-import React from 'react';
-import { Page, Header, Content } from '@backstage/core-components';
-import { useWhatsAppGroups } from '../hooks';
-
-export const WhatsAppGroupsPage = () => {
-  const { groups, loading } = useWhatsAppGroups();
-
-  return (
-    <Page themeId="tool">
-      <Header
-        title="Grupos WhatsApp"
-        subtitle="Comunidades da Codaqui"
-      />
-      <Content>
-        <GroupsList groups={groups} loading={loading} />
-      </Content>
-    </Page>
-  );
-};
-```
-
-### Import Order Convention
-
-```typescript
-// 1. React and external libraries
-import React from 'react';
-import { useAsync } from 'react-use';
-
-// 2. Backstage packages
-import { useApi } from '@backstage/core-plugin-api';
-import { catalogApiRef } from '@backstage/plugin-catalog-react';
-
-// 3. Material-UI
-import { Card, CardContent, Typography } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
-
-// 4. Internal components
+// Example test with React Testing Library
+import { render, screen } from '@testing-library/react';
 import { CodaquiWelcomeCard } from './CodaquiWelcomeCard';
 
-// 5. Hooks and utils
-import { useWhatsAppGroups } from '../../hooks';
-import { WhatsAppGroup } from '../../utils';
-```
-
-### File Naming Conventions
-
-- **Components**: PascalCase - `WhatsAppGroupsCard.tsx`
-- **Hooks**: camelCase with `use` prefix - `useWhatsAppGroups.ts`
-- **Utils**: camelCase - `helpers.ts`
-- **Types**: camelCase - `types.ts`
-- **Pages**: PascalCase with `Page` suffix - `WhatsAppGroupsPage.tsx`
-- **Index files**: Always lowercase - `index.ts`
-
-## 🤖 Instructions for AI Agents
-
-### When Adding New Features
-
-#### 1. Adding a New Resource Type (e.g., Podcast)
-
-**Step 1:** Add type definition
-```typescript
-// utils/types.ts
-export type CodaquiResourceType =
-  | 'whatsapp'
-  | 'discord'
-  | 'podcast'  // ← New
-  | 'learning-path';
-
-export interface Podcast {
-  name: string;
-  title: string;
-  description: string;
-  url: string;
-  episodes: number;
-  entity: Entity;
-}
-```
-
-**Step 2:** Create hook
-```typescript
-// hooks/usePodcasts.ts
-export function usePodcasts() {
-  const catalogApi = useApi(catalogApiRef);
-
-  const { value: podcasts, loading, error } = useAsync(async () => {
-    const entities = await catalogApi.getEntities({
-      filter: { kind: 'Component', 'spec.type': 'podcast' },
-    });
-    return entities.items.map(extractPodcastInfo);
-  }, [catalogApi]);
-
-  return { podcasts: podcasts || [], loading, error };
-}
-```
-
-**Step 3:** Create card component
-```typescript
-// components/home/PodcastCard.tsx
-export const PodcastCard = ({ maxPodcasts = 4 }: Props) => {
-  const { podcasts, loading } = usePodcasts();
-  // Render card
-};
-```
-
-**Step 4:** Create page
-```typescript
-// pages/PodcastsPage.tsx
-export const PodcastsPage = () => {
-  return (
-    <Page themeId="tool">
-      <Header title="Podcasts Codaqui" />
-      <Content>{/* List podcasts */}</Content>
-    </Page>
-  );
-};
-```
-
-**Step 5:** Add route
-```typescript
-// App.tsx
-<Route path="/podcasts" element={<PodcastsPage />} />
-```
-
-**Step 6:** Export properly
-```typescript
-// pages/index.ts
-export { PodcastsPage } from './PodcastsPage';
-
-// hooks/index.ts
-export { usePodcasts } from './usePodcasts';
-```
-
-#### 2. Modifying Existing Components
-
-**Always:**
-1. Read the component file first
-2. Check for existing patterns
-3. Maintain TypeScript types
-4. Update related tests (when they exist)
-5. Keep imports organized
-
-**Example: Adding a filter to WhatsAppGroupsCard**
-
-```typescript
-// Before modifying, understand current props
-interface WhatsAppGroupsCardProps {
-  maxGroups?: number;
-}
-
-// Add new prop
-interface WhatsAppGroupsCardProps {
-  maxGroups?: number;
-  filterByTag?: string;  // ← New
-}
-
-// Implement filtering logic
-const filteredGroups = groups.filter(group =>
-  filterByTag ? group.tags.includes(filterByTag) : true
-);
-```
-
-#### 3. Working with Themes
-
-**When modifying themes:**
-
-```typescript
-// theme/codaquiTheme.ts
-
-// Always maintain brand colors
-const codaquiGreen = '#57B593';  // DON'T CHANGE
-const codaquiDarkGray = '#3A2F39';  // DON'T CHANGE
-
-// Extend theme carefully
-export const codaquiLightTheme = createUnifiedTheme({
-  palette: {
-    ...palettes.light,  // ← Keep base palette
-    primary: {
-      main: codaquiGreen,  // ← Brand color
-      // light/dark variants OK to adjust
-    },
-    // Add new colors if needed
-    success: {
-      main: codaquiGreen,  // Reuse brand color
-    },
-  },
-  // Component overrides
-  components: {
-    BackstageHeader: {
-      styleOverrides: {
-        header: {
-          backgroundColor: codaquiDarkGray,
-        },
-      },
-    },
-  },
-});
-```
-
-### Code Review Checklist
-
-Before submitting changes:
-
-- [ ] TypeScript compiles without errors (`yarn tsc`)
-- [ ] No linting errors (`yarn lint`)
-- [ ] Imports are organized (React → Backstage → MUI → Internal)
-- [ ] Components have proper TypeScript types
-- [ ] New files have proper exports in `index.ts`
-- [ ] Follows existing naming conventions
-- [ ] Brand colors maintained (green #57B593)
-- [ ] No hardcoded values (use theme/config)
-- [ ] Loading and error states handled
-- [ ] Responsive design considered
-
-### Common Pitfalls to Avoid
-
-#### ❌ DON'T: Mix responsibilities
-
-```typescript
-// BAD: Component + data fetching + business logic
-const MyComponent = () => {
-  const catalogApi = useApi(catalogApiRef);
-  const [data, setData] = useState([]);
-
-  useEffect(() => {
-    catalogApi.getEntities().then(/* complex logic */);
-  }, []);
-
-  // 100 lines of component code
-};
-```
-
-#### ✅ DO: Separate concerns
-
-```typescript
-// GOOD: Hook handles data
-const useMyData = () => {
-  const catalogApi = useApi(catalogApiRef);
-  // Data fetching logic
-  return { data, loading, error };
-};
-
-// GOOD: Component just renders
-const MyComponent = () => {
-  const { data, loading } = useMyData();
-  if (loading) return <Loading />;
-  return <DataView data={data} />;
-};
-```
-
-#### ❌ DON'T: Hardcode URLs or values
-
-```typescript
-// BAD
-const link = 'http://localhost:3000/catalog?kind=component';
-const color = '#57B593';
-```
-
-#### ✅ DO: Use config and theme
-
-```typescript
-// GOOD
-import { useApi, configApiRef } from '@backstage/core-plugin-api';
-const config = useApi(configApiRef);
-const baseUrl = config.getString('app.baseUrl');
-
-// GOOD: Use theme
-const useStyles = makeStyles(theme => ({
-  button: {
-    backgroundColor: theme.palette.primary.main,
-  },
-}));
-```
-
-#### ❌ DON'T: Create inconsistent file structure
-
-```typescript
-// BAD
-components/MyNewFeature.tsx
-components/myNewFeatureHelpers.ts
-components/MyNewFeaturePage.tsx
-```
-
-#### ✅ DO: Follow established patterns
-
-```typescript
-// GOOD
-components/home/MyNewFeatureCard.tsx
-pages/MyNewFeaturePage.tsx
-hooks/useMyNewFeature.ts
-utils/myNewFeatureHelpers.ts
-```
-
-## 🧪 Testing Guidelines (Future)
-
-When tests are implemented, follow these patterns:
-
-```typescript
-// hooks/__tests__/useWhatsAppGroups.test.ts
-import { renderHook } from '@testing-library/react-hooks';
-import { useWhatsAppGroups } from '../useWhatsAppGroups';
-
-describe('useWhatsAppGroups', () => {
-  it('should fetch WhatsApp groups', async () => {
-    const { result, waitForNextUpdate } = renderHook(() =>
-      useWhatsAppGroups(),
-    );
-
-    await waitForNextUpdate();
-
-    expect(result.current.groups).toHaveLength(5);
-    expect(result.current.loading).toBe(false);
+describe('CodaquiWelcomeCard', () => {
+  it('renders welcome message', () => {
+    render(<CodaquiWelcomeCard />);
+    expect(
+      screen.getByText('Bem-vindo à Comunidade Codaqui!'),
+    ).toBeInTheDocument();
   });
 });
 ```
 
-## 🔄 Git Workflow
+### Backend Testing
 
-### Commit Message Convention
+- Unit tests for utilities and transformers
+- Integration tests for API endpoints
+- Permission policy tests
+- Plugin configuration tests
 
-Follow conventional commits:
+### E2E Testing
 
-```bash
-feat: add podcasts page and catalog integration
-fix: correct logo sizing in mobile view
-docs: update AGENTS.md with new patterns
-style: format code with prettier
-refactor: extract WhatsApp logic to custom hook
-test: add unit tests for useResourceCounts
-chore: update dependencies to latest Backstage version
-```
-
-### Branch Naming
+Uses Playwright for end-to-end testing:
 
 ```bash
-feat/add-podcasts-page
-fix/logo-mobile-sizing
-docs/update-agents-guide
-refactor/extract-hooks
+yarn test:e2e
 ```
 
-### Pull Request Template
-
-```markdown
-## Description
-Brief description of changes
-
-## Type of Change
-- [ ] New feature
-- [ ] Bug fix
-- [ ] Documentation
-- [ ] Refactoring
-
-## Checklist
-- [ ] TypeScript compiles
-- [ ] No linting errors
-- [ ] Follows code patterns in AGENTS.md
-- [ ] Assets organized properly
-- [ ] Brand colors maintained
-```
-
-## 📚 Backstage Concepts
-
-### Entities
-
-Backstage uses YAML files to describe entities:
-
-```yaml
-# catalog-info.yaml
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: whatsapp-devparana
-  title: Dev Paraná - WhatsApp
-  description: Comunidade de desenvolvedores do Paraná
-  annotations:
-    codaqui.dev/url: https://chat.whatsapp.com/...
-  tags:
-    - whatsapp
-    - comunidade
-    - paraná
-spec:
-  type: whatsapp
-  lifecycle: production
-  owner: community
-```
-
-### Software Templates
-
-Templates for scaffolding new projects:
-
-```yaml
-# templates/node-service/template.yaml
-apiVersion: scaffolder.backstage.io/v1beta3
-kind: Template
-metadata:
-  name: node-service
-  title: Node.js Service
-  description: Create a new Node.js microservice
-spec:
-  type: service
-  parameters:
-    - title: Service Info
-      required:
-        - name
-        - description
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-```
-
-### Catalog Locations
-
-Configure where Backstage finds entities:
-
-```yaml
-# app-config.yaml
-catalog:
-  locations:
-    # Common resources (always loaded: users, groups, systems)
-    - type: file
-      target: ./default/common/*.yaml
-      rules:
-        - allow: [User, Group, Component, System, Domain]
-
-    # Kubernetes resources (loaded when files exist)
-    - type: file
-      target: ./default/k8s/*.yaml
-      rules:
-        - allow: [Component, Resource]
-
-    # Software templates
-    - type: file
-      target: ./default/templates/*/template.yaml
-      rules:
-        - allow: [Template]
-
-    # External templates (optional)
-    - type: url
-      target: https://github.com/codaqui/templates/blob/main/catalog-info.yaml
-```
+## 🔒 Security & Permissions
 
-**Note**: Kubernetes resources are conditionally loaded based on the `ENABLE_K8S` build argument. When `ENABLE_K8S=false`, the YAML files are removed during the Docker build process.
+### Permission Levels
 
-## 🎓 Resources for Learning
+1. **Unauthenticated**: Read-only access to public resources
+2. **Guest**: Authenticated read-only access
+3. **Authenticated**: Full read + ownership-based write access
+4. **Special Groups**: Custom permissions (e.g., conselho can manage announcements)
 
-### Backstage Documentation
+### Key Security Features
 
-- [Backstage Official Docs](https://backstage.io/docs)
-- [Plugin Development](https://backstage.io/docs/plugins)
-- [Software Templates](https://backstage.io/docs/features/software-templates)
-- [Catalog](https://backstage.io/docs/features/software-catalog)
+- GitHub OAuth integration
+- Guest authentication provider
+- Ownership-based resource permissions
+- Audit logging
+- CORS configuration
+- Secret management
 
-### React & TypeScript
+## 📚 Development Guidelines
 
-- [React Documentation](https://react.dev)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook)
-- [React Hooks](https://react.dev/reference/react)
+### Code Style
 
-### Material-UI
+- **TypeScript**: Strict mode enabled
+- **ESLint**: Backstage configuration
+- **Prettier**: Consistent formatting
+- **Import Order**: Backstage > external > internal
 
-- [Material-UI v4 Docs](https://v4.mui.com)
-- [makeStyles API](https://v4.mui.com/styles/api/#makestyles-styles-options-hook)
+### Git Workflow
 
-## 🔐 Security Guidelines
+- Feature branches from `main`
+- Pull requests with reviews
+- Automated testing on PR
+- Semantic versioning for releases
 
-### Environment Variables
+### Documentation
 
-**NEVER commit:**
-- `.env`
-- `.env.front`
-- `.env.database`
-- `*-credentials.yaml`
-- GitHub tokens
-- OAuth secrets
+- **README.md**: Project overview and setup
+- **AGENTS.md**: AI agent instructions (this file)
+- Inline code documentation
+- API documentation via TechDocs
 
-**Always:**
-- Use `.env.example` as template
-- Store secrets in environment variables
-- Use GitHub Secrets for CI/CD
-- Rotate credentials regularly
+## 🐛 Common Issues & Solutions
 
-### Permission Policy
+### Build Issues
 
-Current policy (can be customized):
-- **Unauthenticated**: Read-only catalog access
-- **Guest users**: Limited to viewing public resources
-- **Authenticated users**: Full read access
-- **Resource owners**: Can modify/delete their resources
+- **Yarn Berry conflicts**: Delete `node_modules` and `yarn.lock`, then `yarn install`
+- **TypeScript errors**: Check `@backstage/*` version compatibility
+- **Material-UI warnings**: Ensure v4 compatibility (not v5)
 
-## 🚀 Deployment
+### Runtime Issues
 
-### Local Development
+- **Database connection**: Check PostgreSQL container is running
+- **Auth failures**: Verify GitHub OAuth configuration
+- **Permission denied**: Check user group membership and permission policies
 
-```bash
-# Using Podman Compose (recommended)
-podman compose up --build --force-recreate
+### Development Issues
 
-# Using Docker Compose
-docker compose up --build --force-recreate
+- **Hot reload not working**: Restart dev servers
+- **Plugin conflicts**: Check plugin version compatibility
+- **Theme not applying**: Clear browser cache, check theme imports
 
-# Local development (no containers)
-yarn dev
-```
+## 🎯 AI Agent Responsibilities
 
-### Production Build
+When working on this project, you should:
 
-```bash
-# Build frontend and backend artifacts
-yarn build:all
+1. **Use correct technologies**: Backstage, Material-UI v4, Webpack, PostgreSQL, Jest, Playwright
+2. **Follow monorepo structure**: Respect package boundaries and dependencies
+3. **Implement Backstage patterns**: Use proper plugin architecture and APIs
+4. **Apply custom theme**: Use Codaqui colors (#57B593, #3A2F39) consistently
+5. **Handle permissions**: Implement proper authorization checks
+6. **Test thoroughly**: Write tests for new functionality
+7. **Document changes**: Update relevant documentation
 
-# Build Docker images (these images are what we deploy to Kubernetes)
-podman build -f Dockerfile.frontend -t registry.example.com/codaqui/backstage-frontend:latest .
-podman build -f Dockerfile.backend -t registry.example.com/codaqui/backstage-backend:latest .
-
-# Push images to your registry
-podman push registry.example.com/codaqui/backstage-frontend:latest
-podman push registry.example.com/codaqui/backstage-backend:latest
-
-# Deploy to Kubernetes cluster (production/staging)
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/secrets.yaml
-kubectl apply -f k8s/deployments.yaml
-kubectl apply -f k8s/services.yaml
-kubectl apply -f k8s/ingress.yaml
-```
-
-### Environment Configuration
-
-- **Development**: `app-config.yaml`
-- **Docker**: `app-config.docker.yaml` (merged)
-- **Production**: `app-config.production.yaml` (merged)
-- **Kubernetes Testing**: `app-config.k8s.yaml` (merged with docker config)
-
-### Docker Build Arguments
-
-```yaml
-# Dockerfile.backend & Dockerfile.frontend
-ARG NODE_ENV
-ARG NODE_OPTIONS
-ARG CONFIG_FILE
-ARG ENABLE_K8S=false  # Controls K8s resource inclusion
-```
-
-**ENABLE_K8S behavior:**
-- `true`: Includes `./default/k8s/*.yaml` files in catalog
-- `false`: Removes K8s YAML files during build (smaller image, no K8s resources)
-
-### Kubernetes Integration
-
-When `CODAQUI_TESTING_WITH_KUBERNETES=true`:
-
-1. **kubectl-proxy service** starts (port 8001)
-2. **ENABLE_K8S=true** passed to Docker builds
-3. **K8s resources** loaded from `./default/k8s/*.yaml`
-4. **K8s-specific config** from `app-config.k8s.yaml` applied
-
-**Required for K8s testing:**
-- Local Kubernetes cluster (Kind, Minikube, etc.)
-- `kubectl` configured to access cluster
-- K8s resources deployed: `kubectl apply -f ./default/k8s/deployment.yaml`
-
-## 🤝 Contributing Guidelines
-
-### For Human Contributors
-
-1. Read this AGENTS.md file completely
-2. Check existing patterns in codebase
-3. Follow TypeScript and React best practices
-4. Maintain brand identity (colors, logos)
-5. Test locally before submitting PR
-6. Write clear commit messages
-
-### For AI Agents
-
-1. Always analyze existing code first
-2. Follow established patterns strictly
-3. Maintain type safety (TypeScript)
-4. Keep brand consistency
-5. Organize files in correct folders
-6. Export components/hooks properly
-7. Add comments for complex logic
-8. Never hardcode values (use config/theme)
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-#### 1. Module not found errors
-
-```bash
-# Clear cache and reinstall
-rm -rf node_modules yarn.lock
-yarn install
-```
-
-#### 2. TypeScript errors
-
-```bash
-# Check for type errors
-yarn tsc --noEmit
-
-# Fix auto-fixable issues
-yarn lint:fix
-```
-
-#### 3. Theme not applying
-
-Check:
-- Theme is imported in `App.tsx`
-- `UnifiedThemeProvider` wraps content
-- Theme object structure matches Backstage API
-
-#### 5. Kubernetes resources not loading
-
-**Symptoms:**
-- K8s components not appearing in catalog
-- kubectl-proxy connection errors
-
-**Checks:**
-```bash
-# Verify K8s mode is enabled
-echo $CODAQUI_TESTING_WITH_KUBERNETES  # Should be "true"
-
-# Check if K8s files exist in container
-podman exec -it codaqui-portal-backend ls -la /app/default/k8s/
-
-# Verify kubectl-proxy is running
-podman ps | grep kubectl-proxy
-
-# Test K8s cluster connection
-kubectl get nodes
-```
-
-**Solutions:**
-```bash
-# Enable K8s mode
-export CODAQUI_TESTING_WITH_KUBERNETES=true
-
-# Rebuild containers
-podman compose down
-podman compose up --build --force-recreate
-
-# Deploy K8s resources
-kubectl apply -f ./default/k8s/deployment.yaml
-```
-
-## 📞 Support
-
-- **GitHub Issues**: https://github.com/codaqui/backstage/issues
-- **Email**: contato@codaqui.dev
-- **Discord**: https://discord.com/invite/xuTtxqCPpz
-- **WhatsApp Community**: Check catalog for groups
-
----
-
-**Last Updated**: 2025-11-13  
-**Version**: 1.0.0  
-**Maintained By**: Codaqui Community  
-**License**: Apache License 2.0
-
----
-
-## 🔖 Quick Reference
-
-### File Organization Rules
-
-```
-✅ Components → components/
-✅ Pages → pages/
-✅ Hooks → hooks/
-✅ Types → utils/types.ts
-✅ Helpers → utils/helpers.ts
-✅ Themes → theme/
-✅ Assets → assets/logos/
-✅ Tests → __tests__/
-✅ Common entities → default/common/
-✅ K8s entities → default/k8s/
-✅ Templates → default/templates/
-```
-
-### Import Patterns
-
-```typescript
-// Internal imports
-import { MyComponent } from './MyComponent';           // Same folder
-import { useMyHook } from '../../hooks';               // Parent folders
-import { MyType } from '../../utils';                  // Utils
-
-// External imports
-import { useApi } from '@backstage/core-plugin-api';  // Backstage
-import { Card } from '@material-ui/core';             // Material-UI
-```
-
-### Brand Colors
-
-```typescript
-Primary:   #57B593  // Codaqui Green
-Secondary: #3A2F39  // Dark Gray (light mode)
-Secondary: #B5B5B5  // Light Gray (dark mode)
-```
-
-### Key Commands
-
-```bash
-# Local Development (Docker/Podman Compose - recommended)
-podman compose --profile standard up -d         # Start all services (frontend + backends)
-podman compose --profile standard up --build    # Rebuild and start
-podman compose down                             # Stop all services
-
-# Alternative: Run workspaces separately (fast frontend iteration)
-yarn start:catalog      # Start backend-catalog (port 7008)
-yarn start:main         # Start backend-main (port 7007)
-yarn start              # Start frontend (port 3000)
-yarn dev                # Start all together
-
-# Build (monorepo)
-yarn build:all          # Build all workspaces
-yarn tsc                # Check TypeScript
-yarn lint               # Run linter
-yarn lint:fix           # Fix lint issues
-yarn test               # Run tests (when available)
-
-# Docker Build
-yarn docker:build:catalog   # Build backend-catalog image
-yarn docker:build:main      # Build backend-main image
-yarn docker:build:all       # Build both backend images
-
-# Kubernetes - local test (kind/minikube)
-kind create cluster --name codaqui
-kind load docker-image codaqui/backstage-backend:latest --name codaqui
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/secrets.yaml
-kubectl apply -f k8s/deployments.yaml
-kubectl apply -f k8s/services.yaml
-kubectl apply -f k8s/ingress.yaml
-
-# Port-forwarding for quick tests
-kubectl port-forward svc/backend-main 7007:7007 -n codaqui
-kubectl port-forward svc/backend-catalog 7008:7008 -n codaqui
-
-# Container logs (compose)
-podman logs -f codaqui-portal-backend-catalog
-podman logs -f codaqui-portal-backend-main
-podman logs -f codaqui-portal-frontend
-
-# Access containers (compose)
-podman exec -it codaqui-portal-backend-catalog bash
-podman exec -it codaqui-portal-backend-main bash
-
-# Health checks
-curl http://localhost:7008/healthcheck  # Catalog backend
-curl http://localhost:7007/healthcheck  # Main backend
-curl http://localhost:7008/api/catalog/entities  # List entities
-```
-
----
-
-**Remember**: This is a living document. Update it as the project evolves! 🚀
+Remember: This is a Backstage portal for a Brazilian technology community focused on democratizing tech education. Keep implementations accessible, inclusive, and community-oriented.
