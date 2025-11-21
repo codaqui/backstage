@@ -55,7 +55,8 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@backstage/cli": "^0.34.4"
+    "@backstage/cli": "^0.34.4",
+    "webpack": "~5.96.0"
   },
   "files": [
     "dist"
