@@ -1,0 +1,139 @@
+name: Build & Push Images
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to use for images (optional, defaults to branch/tag name)'
+        required: false
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+    env:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=4096
+      ENABLE_K8S: false
+
+    strategy:
+      matrix:
+        include:
+          # Frontend service
+          - service: frontend
+            dockerfile: Dockerfile.frontend
+            context: .
+            build-args: |
+              CONFIG_FILE=app-config.yaml,app-config.docker.yaml
+            tags: |
+              type=ref,event=branch
+              type=ref,event=tag
+              type=ref,event=pr
+              type=sha,prefix={{branch}}-
+              type=raw,value=latest,enable={{is_default_branch}}
+
+          # Backend Main service
+          - service: backend-main
+            dockerfile: Dockerfile.backend
+            context: .
+            build-args: |
+              BACKEND_PACKAGE=backend-main
+              CONFIG_FILE=app-config.yaml,app-config.docker.yaml,app-config.main.yaml
+            tags: |
+              type=ref,event=branch
+              type=ref,event=tag
+              type=ref,event=pr
+              type=sha,prefix={{branch}}-
+              type=raw,value=latest,enable={{is_default_branch}}
+
+          # Backend Catalog service
+          - service: backend-catalog
+            dockerfile: Dockerfile.backend
+            context: .
+            build-args: |
+              BACKEND_PACKAGE=backend-catalog
+              CONFIG_FILE=app-config.yaml,app-config.docker.yaml,app-config.catalog.yaml
+            tags: |
+              type=ref,event=branch
+              type=ref,event=tag
+              type=ref,event=pr
+              type=sha,prefix={{branch}}-
+              type=raw,value=latest,enable={{is_default_branch}}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login against a Docker registry except on PR
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}
+          tags: ${{ matrix.tags }}
+
+      # Build and push Docker image with Buildx (don't push on PR)
+      # https://github.com/docker/build-push-action
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.build-args }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Security scanning
+  security-scan:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          scan-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
