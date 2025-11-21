@@ -141,7 +141,12 @@ export const Root = ({ children }: PropsWithChildren<{}>): JSX.Element => (
         {/* Global nav, not org-specific */}
         <SidebarItem icon={HomeIcon} to="/" text="Início" />
         <SidebarItem icon={HomeIcon} to="catalog" text="Catálogo" />
-        <SidebarItem icon={Announcement} to="announcements" text="Notícias" />
+        <SidebarItem
+          icon={Announcement}
+          to="announcements"
+          text="Notícias"
+          aria-label="Anúncios da comunidade"
+        />{' '}
         <SidebarDivider />
         <SidebarItem icon={WhatsAppIcon} to="whatsapp-groups" text="WhatsApp" />
         <SidebarItem
