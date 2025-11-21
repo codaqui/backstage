@@ -155,6 +155,9 @@ backend.add(import('@backstage/plugin-signals-backend'));
 // announcements
 // https://github.com/backstage/community-plugins/tree/main/workspaces/announcements/
 backend.add(import('@backstage-community/plugin-announcements-backend'));
+backend.add(
+  import('@backstage-community/plugin-search-backend-module-announcements'),
+);
 
 // Let's go! Start!
 backend.start();
