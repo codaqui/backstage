@@ -1,7 +1,4 @@
-import {
-  createUnifiedTheme,
-  palettes,
-} from '@backstage/theme';
+import { createUnifiedTheme, palettes } from '@backstage/theme';
 
 // Cores da Codaqui
 const codaquiGreen = '#57B593';

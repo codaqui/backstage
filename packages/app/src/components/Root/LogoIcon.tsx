@@ -7,7 +7,7 @@ const useStyles = makeStyles({
   },
 });
 
-const LogoIcon = () => {
+const LogoIcon = (): JSX.Element => {
   const classes = useStyles();
   const theme = useTheme();
   const isDarkMode = theme.palette.type === 'dark';

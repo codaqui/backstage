@@ -8,16 +8,10 @@ const useStyles = makeStyles({
   },
 });
 
-const LogoFull = () => {
+const LogoFull = (): JSX.Element => {
   const classes = useStyles();
 
-  return (
-    <img
-      src={LogoMono}
-      alt="Codaqui Logo"
-      className={classes.img}
-    />
-  );
+  return <img src={LogoMono} alt="Codaqui Logo" className={classes.img} />;
 };
 
 export default LogoFull;
