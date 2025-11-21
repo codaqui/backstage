@@ -8,14 +8,14 @@ services:
     image: alpine/k8s:1.31.13
     container_name: codaqui-portal-kubectl-proxy
     entrypoint: /bin/sh
-    command: 
+    command:
       - -c
       - |
         # Modify kubeconfig to skip TLS verification and use host.docker.internal
         cat /kubeconfig-orig/config | \
         sed 's/127\.0\.0\.1/host.docker.internal/g' | \
         sed 's/certificate-authority-data:.*/insecure-skip-tls-verify: true/g' > /tmp/config
-        
+
         echo "Testing connection to host Kubernetes cluster..."
         until kubectl --kubeconfig=/tmp/config get nodes 2>/dev/null; do
           echo "Waiting for host cluster to be accessible..."
@@ -32,7 +32,7 @@ services:
       # Mount your local kubeconfig from host machine (Read-Only)
       - ${HOME}/.kube/config:/kubeconfig-orig/config:ro
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
     networks:
       - backstage-network
 
@@ -67,7 +67,7 @@ services:
       dockerfile: Dockerfile.backend
       args:
         BACKEND_PACKAGE: backend-catalog
-        CONFIG_FILE: "app-config.yaml,app-config.docker.yaml,app-config.catalog.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}"
+        CONFIG_FILE: 'app-config.yaml,app-config.docker.yaml,app-config.catalog.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}'
         NODE_ENV: production
         ENABLE_K8S: ${CODAQUI_TESTING_WITH_KUBERNETES:-false}
     container_name: codaqui-portal-backend-catalog
@@ -80,12 +80,18 @@ services:
       - CATALOG_SERVICE_URL=http://backend-catalog:7008
       - MAIN_SERVICE_URL=http://backend-main:7007
     ports:
-      - "7008:7008"
+      - '7008:7008'
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7008/.backstage/health/v1/readiness"]
+      test:
+        [
+          'CMD',
+          'curl',
+          '-f',
+          'http://localhost:7008/.backstage/health/v1/readiness',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -102,7 +108,7 @@ services:
       dockerfile: Dockerfile.backend
       args:
         BACKEND_PACKAGE: backend-main
-        CONFIG_FILE: "app-config.yaml,app-config.docker.yaml,app-config.main.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}"
+        CONFIG_FILE: 'app-config.yaml,app-config.docker.yaml,app-config.main.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}'
         NODE_ENV: production
         ENABLE_K8S: ${CODAQUI_TESTING_WITH_KUBERNETES:-false}
     container_name: codaqui-portal-backend-main
@@ -115,14 +121,20 @@ services:
       - CATALOG_SERVICE_URL=http://backend-catalog:7008
       - MAIN_SERVICE_URL=http://backend-main:7007
     ports:
-      - "7007:7007"
+      - '7007:7007'
     depends_on:
       postgres:
         condition: service_healthy
       backend-catalog:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7007/.backstage/health/v1/readiness"]
+      test:
+        [
+          'CMD',
+          'curl',
+          '-f',
+          'http://localhost:7007/.backstage/health/v1/readiness',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
