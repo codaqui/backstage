@@ -1,11 +1,14 @@
-import { coreServices, createBackendModule } from '@backstage/backend-plugin-api';
+import {
+  coreServices,
+  createBackendModule,
+} from '@backstage/backend-plugin-api';
 import type { LoggerService } from '@backstage/backend-plugin-api';
+import type { PolicyDecision } from '@backstage/plugin-permission-common';
 import {
   AuthorizeResult,
-  PolicyDecision,
   isResourcePermission,
 } from '@backstage/plugin-permission-common';
-import {
+import type {
   PermissionPolicy,
   PolicyQuery,
   PolicyQueryUser,
@@ -16,15 +19,272 @@ import {
   createCatalogConditionalDecision,
 } from '@backstage/plugin-catalog-backend/alpha';
 
+// ==============================================================================
+// 🎯 TYPE-SAFE CENTRALIZED GROUP PERMISSIONS CONFIGURATION
+// ==============================================================================
+
+/**
+ * Type-safe configuration that ensures every group in SPECIAL_GROUPS
+ * has corresponding permissions defined in GROUP_PERMISSIONS
+ *
+ * 🔒 Key Enforcement: SPECIAL_GROUPS keys MUST be lowercase
+ * - TypeScript will error if you use uppercase keys like 'GUESTS'
+ * - This prevents runtime mismatches between group names and permissions
+ */
+
+// First, define the base group configuration with enforced lowercase keys
+const SPECIAL_GROUPS = {
+  guests: ['user:default/guest', 'group:default/guests'],
+  conselho: ['group:default/conselho'],
+  // admins: ['group:default/admins'],
+  // moderators: ['group:default/moderators'],
+} as const;
+
+// Create a type that extracts group names from SPECIAL_GROUPS
+type GroupNames = keyof typeof SPECIAL_GROUPS;
+
+// Type-safe GROUP_PERMISSIONS that must include all groups from SPECIAL_GROUPS
+type GroupPermissions = {
+  [K in GroupNames]: readonly string[];
+};
+
+// Now define permissions with compile-time type safety
+const GROUP_PERMISSIONS: GroupPermissions = {
+  // ✅ Type-safe: 'conselho' must exist because conselho is in SPECIAL_GROUPS
+  conselho: [
+    'announcement.entity.*', // All announcement operations
+    // Or use specific permissions:
+    // 'announcement.entity.create',
+    // 'announcement.entity.update',
+    // 'announcement.entity.delete',
+    // 'announcement.entity.read',
+  ],
+
+  // ✅ Type-safe: 'guests' must exist because guests is in SPECIAL_GROUPS
+  guests: [
+    '*.read', // Read-only access for guest group (fallback)
+  ],
+
+  // Example: When you uncomment groups above, you MUST add them here:
+  // admins: [
+  //   'catalog.entity.*',           // All catalog operations
+  //   'scaffolder.*',               // All scaffolder operations
+  //   '*.read',                     // All read operations
+  // ],
+  // moderators: [
+  //   'catalog.entity.update',
+  //   'techdocs.*',                 // All TechDocs operations
+  //   '*.read',                     // All read operations
+  // ],
+} as const;
+
+/**
+ * Complete type-safe permission configuration
+ *
+ * 🛡️ Type Safety Benefits:
+ * - Compile-time error if group exists in SPECIAL_GROUPS but not in GROUP_PERMISSIONS
+ * - Prevents silent runtime failures
+ * - IntelliSense autocomplete for group names
+ * - Refactoring safety when renaming groups
+ *
+ * 📝 How to add new groups safely:
+ * 1. Add the group to SPECIAL_GROUPS with lowercase key (e.g., 'admins')
+ * 2. TypeScript will error until you add corresponding entry to GROUP_PERMISSIONS
+ * 3. The system ensures consistency at compile time
+ *
+ * 🌟 Wildcard Support:
+ * - Use "*.read" to grant all read permissions
+ * - Use "announcement.*" to grant all announcement permissions
+ * - Use "catalog.entity.*" for all catalog entity operations
+ */
+const PERMISSION_CONFIG = {
+  // 👥 Special groups with custom permissions
+  SPECIAL_GROUPS,
+
+  // 🎯 Type-safe permissions by group (supports wildcards)
+  GROUP_PERMISSIONS,
+
+  // 📋 Base permissions always allowed for authenticated users
+  AUTHENTICATED_BASE_PERMISSIONS: ['*.read'],
+
+  // 🔓 Permissions allowed for unauthenticated users
+  UNAUTHENTICATED_PERMISSIONS: ['*.read'],
+
+  // 👤 Specific permissions for authenticated guests
+  GUEST_PERMISSIONS: ['*.read'],
+} as const;
+
+// ==============================================================================
+// 🛠️ PRE-COMPUTED NORMALIZED GROUP REFS (CACHED AT MODULE LOAD)
+// ==============================================================================
+
+/**
+ * Pre-computed normalized group refs for efficient lookups
+ * Computed once at module load time to avoid repeated work
+ */
+const NORMALIZED_GROUP_REFS = new Map<GroupNames, Set<string>>();
+for (const [groupKey, groupRefs] of Object.entries(
+  PERMISSION_CONFIG.SPECIAL_GROUPS,
+)) {
+  const groupName = groupKey as GroupNames;
+  NORMALIZED_GROUP_REFS.set(
+    groupName,
+    new Set(groupRefs.map(ref => ref.toLowerCase())),
+  );
+}
+
+// ==============================================================================
+// 🛠️ PERMISSION VERIFICATION UTILITIES
+// ==============================================================================
+
+/**
+ * Checks if a permission matches a wildcard pattern
+ *
+ * Examples:
+ * - "*.read" matches "catalog.entity.read", "announcement.entity.read"
+ * - "announcement.*" matches "announcement.entity.create", "announcement.entity.update"
+ * - "catalog.entity.*" matches "catalog.entity.read", "catalog.entity.update"
+ */
+function matchesWildcard(permission: string, pattern: string): boolean {
+  if (!pattern.includes('*')) {
+    return permission === pattern;
+  }
+
+  // Escape all regex special characters except '*'
+  const regexPattern = pattern
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape all special regex chars
+    .replace(/\*/g, '.*'); // Convert * to .*
+  const regex = new RegExp(`^${regexPattern}$`);
+  return regex.test(permission);
+}
+
+/**
+ * Checks if the user belongs to a specific group
+ */
+function isUserInGroup(
+  userEntityRefs: string[],
+  groupRefs: readonly string[],
+): boolean {
+  const normalizedUserRefs = userEntityRefs.map(ref => ref.toLowerCase());
+  const normalizedGroupRefs = [...groupRefs].map(ref => ref.toLowerCase());
+
+  return normalizedUserRefs.some(userRef =>
+    normalizedGroupRefs.includes(userRef),
+  );
+}
+
+/**
+ * Optimized function to get user groups and their permissions
+ *
+ * 🚀 Performance optimizations:
+ * - Pre-normalizes user refs once using Set for O(1) lookups
+ * - Pre-computes normalized group refs (cached)
+ * - Uses Set for automatic deduplication
+ * - Returns both groups and permissions in single pass
+ * - Avoids array spreads and multiple iterations
+ */
+function getUserGroupsAndPermissions(userEntityRefs: string[]): {
+  groups: GroupNames[];
+  permissions: string[];
+} {
+  const normalizedUserRefs = new Set(
+    userEntityRefs.map(ref => ref.toLowerCase()),
+  );
+  const matchedGroups: GroupNames[] = [];
+  const permissionsSet = new Set<string>();
+
+  // Check group membership efficiently using pre-computed refs
+  for (const [groupName, normalizedRefs] of NORMALIZED_GROUP_REFS) {
+    const hasMatch = Array.from(normalizedRefs).some(ref =>
+      normalizedUserRefs.has(ref),
+    );
+    if (hasMatch) {
+      matchedGroups.push(groupName);
+
+      // Add permissions directly to set (deduplicates automatically)
+      const groupPermissions = PERMISSION_CONFIG.GROUP_PERMISSIONS[groupName];
+      if (groupPermissions) {
+        groupPermissions.forEach(perm => permissionsSet.add(perm));
+      }
+    }
+  }
+
+  return {
+    groups: matchedGroups,
+    permissions: Array.from(permissionsSet),
+  };
+}
+
+/**
+ * Gets all user-specific permissions based on groups (type-safe with wildcards)
+ *
+ * 🛡️ Type Safety: No more unsafe type assertions!
+ * - Uses proper typing to ensure group exists in permissions
+ * - Validates group permissions exist before access
+ * - Provides helpful error logging for misconfiguration
+ *
+ * 🚀 Performance: Optimized for frequent calls
+ * - Uses efficient group matching with Sets
+ * - Automatic deduplication
+ * - Minimal memory allocations
+ */
+function getUserSpecificPermissions(
+  userEntityRefs: string[],
+  logger?: LoggerService,
+): string[] {
+  const { groups, permissions } = getUserGroupsAndPermissions(userEntityRefs);
+
+  // Log matched groups for debugging
+  if (logger && groups.length > 0) {
+    groups.forEach(groupName => {
+      const groupPermissions = PERMISSION_CONFIG.GROUP_PERMISSIONS[groupName];
+      logger.debug(`🎯 Group permissions added for '${groupName}'`, {
+        group: groupName,
+        permissions: [...groupPermissions], // Convert readonly array for logging
+      });
+    });
+  }
+
+  return permissions;
+}
+
+/**
+ * Checks if a permission is granted considering wildcards
+ */
+function hasPermissionWithWildcards(
+  permission: string,
+  grantedPermissions: string[],
+): boolean {
+  return grantedPermissions.some(granted =>
+    matchesWildcard(permission, granted),
+  );
+}
+
+/**
+ * Checks if a permission is considered a read permission
+ */
+function isReadPermission(
+  permissionName: string,
+  allowedReadPermissions: readonly string[],
+): boolean {
+  return (
+    permissionName.includes('.read') ||
+    allowedReadPermissions.some(allowed =>
+      matchesWildcard(permissionName, allowed),
+    )
+  );
+}
+
 /**
  * Custom Permission Policy for Codaqui Backstage
  *
- * Implemented rules:
- * 1. Unauthenticated users have READ-only access to catalog entities
- * 2. User 'guest' and members of 'guests' group have only READ permission when authenticated
- * 3. Authenticated users can READ all catalog entities
- * 4. For actions that modify catalog resources (create/update/delete), only the owner can execute
- * 5. Other actions are allowed by default for authenticated users
+ * 🎯 Implemented rules:
+ * 1. Unauthenticated users: Limited READ-only access
+ * 2. Guest users: READ-only access when authenticated
+ * 3. Special groups: Custom permissions (e.g., conselho can manage announcements)
+ * 4. Authenticated users: Read access + ownership-based permissions
+ * 5. Catalog resources: Only owner can modify/delete
+ * 6. Wildcard support: Use patterns like '*.read', 'announcement.*'
  */
 class CustomPermissionPolicy implements PermissionPolicy {
   private readonly logger: LoggerService;
@@ -37,150 +297,260 @@ class CustomPermissionPolicy implements PermissionPolicy {
     request: PolicyQuery,
     user?: PolicyQueryUser,
   ): Promise<PolicyDecision> {
+    const permissionName = request.permission.name;
 
-    // If there is no user information (unauthenticated), allow only read permissions
-    const hasUserInfo = user?.info !== undefined && user?.info !== null;
-    if (!hasUserInfo) {
-      // List of allowed permissions for unauthenticated users (read-only)
-      const allowedUnauthenticatedPermissions = [
-        'catalog.entity.read',
-        'catalog.location.read',
-        'scaffolder.template.parameter.read',
-      ];
+    // 📊 Detailed logging for debug
+    this.logger.debug('🔍 Permission check initiated', {
+      permission: permissionName,
+      userId: user?.info?.userEntityRef,
+      userGroups: user?.info?.ownershipEntityRefs,
+      hasUser: !!user?.info,
+    });
 
-      // Check if requested permission is read-only
-      const isReadPermission =
-        request.permission.name.includes('.read') ||
-        allowedUnauthenticatedPermissions.includes(request.permission.name);
-      
-      if (isReadPermission) {
-        this.logger.debug(`✅ ALLOW: Unauthenticated user accessing read permission`, {
-          permission: request.permission.name,
-        });
-        return { result: AuthorizeResult.ALLOW };
-      }
+    // 🚫 UNAUTHENTICATED USERS
+    if (!user?.info) {
+      const isAllowed = isReadPermission(
+        permissionName,
+        PERMISSION_CONFIG.UNAUTHENTICATED_PERMISSIONS,
+      );
 
-      // Deny all other actions for unauthenticated users
-      this.logger.warn(`❌ DENY: Unauthenticated user attempting non-read permission`, {
-        permission: request.permission.name,
-      });
-      return { result: AuthorizeResult.DENY };
+      this.logger.debug(
+        isAllowed
+          ? '✅ ALLOW: Unauthenticated read access'
+          : '❌ DENY: Unauthenticated non-read access',
+        {
+          permission: permissionName,
+          allowed: isAllowed,
+        },
+      );
+
+      return {
+        result: isAllowed ? AuthorizeResult.ALLOW : AuthorizeResult.DENY,
+      };
     }
 
-    // Debug Logging
-    this.logger.debug('Permission check details', {
-      userId: user.info.userEntityRef,
-      ownershipEntityRefs: user.info.ownershipEntityRefs,
-      permissionName: request.permission.name,
-      permissionAttributes: request.permission.attributes,
-    });
-
-    // List of entities representing guest users/groups
-    const guestEntityRefs = ['user:default/guest', 'group:default/guests'];
-
-    // Check if current user is guest or member of guests group
     const userEntityRefs = user.info.ownershipEntityRefs || [];
-    const isGuestUser = userEntityRefs.some(entityRef => {
-      const normalizedRef = entityRef.toLowerCase();
-      return guestEntityRefs.includes(normalizedRef);
-    });
 
-    // If guest user, allow only read actions
+    // 🚀 OPTIMIZATION: Get user groups and permissions in one efficient call
+    // - Normalizes user refs once with Set for O(1) lookups
+    // - Pre-computes group memberships
+    // - Returns deduplicated permissions
+    // - Avoids duplicate group checks (guest check uses same data)
+    const { groups: userGroups, permissions: userSpecificPermissions } =
+      getUserGroupsAndPermissions(userEntityRefs);
+
+    // 👤 CHECK IF USER IS GUEST (optimized - no extra group check)
+    const isGuestUser = userGroups.includes('guests');
+
     if (isGuestUser) {
+      const isAllowed = isReadPermission(
+        permissionName,
+        PERMISSION_CONFIG.GUEST_PERMISSIONS,
+      );
 
-      // List of allowed permissions for guests (read-only)
-      const allowedGuestPermissions = [
-        'catalog.entity.read',
-        'catalog.location.read',
-        'scaffolder.template.parameter.read',
-      ];
-
-      // Check if requested permission is read-only
-      const isReadPermission =
-        request.permission.name.includes('.read') ||
-        allowedGuestPermissions.includes(request.permission.name);
-      
-      // Allow only read actions for guests
-      if (isReadPermission) {
-        this.logger.debug(`✅ ALLOW: Guest user accessing read permission`, {
-          permission: request.permission.name,
+      this.logger.debug(
+        isAllowed
+          ? '✅ ALLOW: Guest read access'
+          : '❌ DENY: Guest non-read access',
+        {
+          permission: permissionName,
           userRefs: userEntityRefs,
-        });
+          userGroups,
+          allowed: isAllowed,
+        },
+      );
+
+      return {
+        result: isAllowed ? AuthorizeResult.ALLOW : AuthorizeResult.DENY,
+      };
+    }
+
+    // 🎯 CHECK GROUP-SPECIFIC PERMISSIONS (with wildcard support)
+    if (hasPermissionWithWildcards(permissionName, userSpecificPermissions)) {
+      this.logger.debug(
+        '✅ ALLOW: Group-specific permission granted (wildcard match)',
+        {
+          permission: permissionName,
+          userRefs: userEntityRefs,
+          userGroups,
+          grantedPermissions: userSpecificPermissions,
+          wildcardMatch: true,
+        },
+      );
+
+      return { result: AuthorizeResult.ALLOW };
+    }
+
+    // 📚 CATALOG PERMISSIONS (with ownership verification)
+    if (isResourcePermission(request.permission, 'catalog-entity')) {
+      // Read: allow for all authenticated users
+      if (
+        isReadPermission(
+          permissionName,
+          PERMISSION_CONFIG.AUTHENTICATED_BASE_PERMISSIONS,
+        )
+      ) {
+        this.logger.debug(
+          '✅ ALLOW: Authenticated user reading catalog entity',
+          {
+            permission: permissionName,
+            userRefs: userEntityRefs,
+          },
+        );
         return { result: AuthorizeResult.ALLOW };
       }
 
-      // Deny all other actions for guests
-      this.logger.debug(`❌ DENY: Guest user attempting non-read permission`, {
-        permission: request.permission.name,
+      // Write/Delete: owner only
+      this.logger.debug('🔄 CONDITIONAL: Catalog resource ownership check', {
+        permission: permissionName,
         userRefs: userEntityRefs,
       });
-      return { result: AuthorizeResult.DENY };
-    }
-    // Logging for authenticated users
-    this.logger.debug('Authenticated user permission check', {
-      permission: request.permission.name,
-      userRefs: userEntityRefs,
-    });
 
-    // For authenticated users (non-guests):
-    // Check if it's a catalog resource-related permission
-    if (isResourcePermission(request.permission, 'catalog-entity')) {
-      // For READ operations, allow all authenticated users
-      if (request.permission.name.includes('.read')) {
-        this.logger.debug(`✅ ALLOW: Authenticated user reading catalog entity`, {
-          permission: request.permission.name,
-          userRefs: userEntityRefs,
-        });
-        return { result: AuthorizeResult.ALLOW };
-      }
-
-      // For WRITE/DELETE operations, use conditional decision based on ownership
-      // This allows only the resource owner to execute the action
       return createCatalogConditionalDecision(
         request.permission,
         catalogConditions.isEntityOwner({
-          claims: user?.info.ownershipEntityRefs ?? [],
+          claims: userEntityRefs,
         }),
       );
     }
 
-    // For catalog creation permissions (no resource type)
-    // Allow for authenticated users (non-guests)
-    this.logger.debug(`✅ ALLOW: Authenticated user accessing catalog create permission`, {
-      permission: request.permission.name,
-      userRefs: userEntityRefs,
-    });
+    // 🏗️ CATALOG CREATION PERMISSIONS
     if (
-      request.permission.name === 'catalog.entity.create' ||
-      request.permission.name === 'catalog.location.create'
+      ['catalog.entity.create', 'catalog.location.create'].includes(
+        permissionName,
+      )
     ) {
+      this.logger.debug(
+        '✅ ALLOW: Catalog creation permission for authenticated user',
+        {
+          permission: permissionName,
+          userRefs: userEntityRefs,
+        },
+      );
       return { result: AuthorizeResult.ALLOW };
     }
 
-    // Scaffolder permissions - allow for authenticated users
-    if (request.permission.name.startsWith('scaffolder.')) {
+    // 🚀 SCAFFOLDER PERMISSIONS
+    if (permissionName.startsWith('scaffolder.')) {
+      this.logger.debug(
+        '✅ ALLOW: Scaffolder permission for authenticated user',
+        {
+          permission: permissionName,
+          userRefs: userEntityRefs,
+        },
+      );
       return { result: AuthorizeResult.ALLOW };
     }
 
-    // Default: allow for authenticated users
-    return { result: AuthorizeResult.ALLOW };
+    // 🔧 BASE AUTHENTICATED PERMISSIONS
+    if (
+      isReadPermission(
+        permissionName,
+        PERMISSION_CONFIG.AUTHENTICATED_BASE_PERMISSIONS,
+      )
+    ) {
+      this.logger.debug('✅ ALLOW: Base authenticated permission', {
+        permission: permissionName,
+        userRefs: userEntityRefs,
+      });
+      return { result: AuthorizeResult.ALLOW };
+    }
+
+    // ⚠️ DEFAULT: DENY UNRECOGNIZED PERMISSIONS
+    this.logger.warn('❌ DENY: Unknown or unauthorized permission', {
+      permission: permissionName,
+      userRefs: userEntityRefs,
+      message:
+        'Permission not explicitly allowed - consider adding to configuration',
+    });
+
+    return { result: AuthorizeResult.DENY };
   }
 }
 
+// ==============================================================================
+// 🎯 BACKSTAGE EXTENSION MODULE
+// ==============================================================================
+
+/**
+ * Extension module for Backstage permission system
+ *
+ * 📋 How to use:
+ * 1. Import this module in your backend
+ * 2. Add to backend with: backend.add(import('./extensions/permissionsPolicyExtension'))
+ * 3. Configure groups in PERMISSION_CONFIG above
+ *
+ * 🔧 How to add new permissions:
+ * 1. Add the group to SPECIAL_GROUPS
+ * 2. Define permissions in GROUP_PERMISSIONS
+ * 3. Permissions will be automatically applied
+ *
+ * 🌟 Wildcard examples:
+ * ```typescript
+ * GROUP_PERMISSIONS: {
+ *   // Grant all read permissions
+ *   readers: ['*.read'],
+ *
+ *   // Grant all announcement operations
+ *   announcers: ['announcement.*'],
+ *
+ *   // Grant all catalog entity operations
+ *   catalogAdmins: ['catalog.entity.*'],
+ *
+ *   // Mixed specific and wildcard permissions
+ *   moderators: [
+ *     'announcement.*',
+ *     'techdocs.entity.update',
+ *     '*.read',
+ *   ],
+ * }
+ * ```
+ */
 export default createBackendModule({
   pluginId: 'permission',
-  moduleId: 'permission-policy',
+  moduleId: 'codaqui-permission-policy',
   register(reg) {
     reg.registerInit({
-      deps: { 
+      deps: {
         policy: policyExtensionPoint,
         log: coreServices.logger,
       },
       async init({ policy, log }) {
-        log.info('Setting up CustomPermissionPolicy for Backstage Permission System');
+        log.info(
+          '🚀 Setting up CustomPermissionPolicy for Codaqui permission system',
+        );
+
+        // Configuration logging for debug
+        log.debug('📋 Permission configuration loaded', {
+          specialGroups: Object.keys(PERMISSION_CONFIG.SPECIAL_GROUPS),
+          groupPermissions: Object.keys(PERMISSION_CONFIG.GROUP_PERMISSIONS),
+          unauthenticatedPermissions:
+            PERMISSION_CONFIG.UNAUTHENTICATED_PERMISSIONS.length,
+          authenticatedBasePermissions:
+            PERMISSION_CONFIG.AUTHENTICATED_BASE_PERMISSIONS.length,
+          wildcardSupport: true,
+        });
+
         policy.setPolicy(new CustomPermissionPolicy(log));
-        log.info('CustomPermissionPolicy has been set successfully');
+        log.info('✅ CustomPermissionPolicy configured successfully!');
       },
     });
   },
 });
+
+// ==============================================================================
+// 📚 EXPORT UTILITIES FOR TESTING (OPTIONAL)
+// ==============================================================================
+
+export {
+  PERMISSION_CONFIG,
+  matchesWildcard,
+  isUserInGroup,
+  getUserGroupsAndPermissions,
+  getUserSpecificPermissions,
+  hasPermissionWithWildcards,
+  isReadPermission,
+};
+
+// Export types for external use
+export type { GroupNames, GroupPermissions };

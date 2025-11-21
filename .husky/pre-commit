@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 🛡️ Pre-commit Hook - Codaqui Backstage Quality Gate
+# This hook runs before every commit to ensure code quality
+
+echo "🔍 Running pre-commit checks..."
+
+# 1. Type checking with TypeScript
+echo "📝 Type checking..."
+yarn type-check || {
+  echo "❌ TypeScript type check failed!"
+  echo "💡 Fix type errors or run 'yarn type-check' to see details"
+  exit 1
+}
+
+# 2. Lint staged files
+echo "🔎 Linting staged files..."
+yarn lint-staged || {
+  echo "❌ Linting failed!"
+  echo "💡 Run 'yarn quality:fix' to auto-fix issues"
+  exit 1
+}
+
+echo "✅ Pre-commit checks passed!"
+echo "🚀 Committing changes..."

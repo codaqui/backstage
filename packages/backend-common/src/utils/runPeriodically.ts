@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { LoggerService } from '@backstage/backend-plugin-api';
+import type { LoggerService } from '@backstage/backend-plugin-api';
 
 /**
  * Runs a function periodically at a given interval.
@@ -27,7 +27,7 @@ export function runPeriodically(
 ): () => void {
   let cancel = false;
 
-  const runOnce = async () => {
+  const runOnce = async (): Promise<void> => {
     if (cancel) {
       return;
     }
@@ -41,7 +41,7 @@ export function runPeriodically(
 
   // Start immediately
   runOnce();
-  
+
   // Return cleanup function
   return () => {
     cancel = true;

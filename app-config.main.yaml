@@ -4,9 +4,13 @@
 
 backend:
   auth:
-    keys:
-      - secret: ${BACKEND_SECRET}
-  baseUrl: http://localhost:7007
+    externalAccess:
+      - type: static
+        options:
+          token: ${BACKEND_SECRET}
+          subject: backstage-auth-service-to-service
+  # Note: baseUrl inherited from app-config.docker.yaml (http://localhost:3000)
+  # This backend always runs with Docker Compose, so app-config.docker.yaml sets the correct URL
   listen:
     port: 7007
     host: 0.0.0.0
@@ -14,8 +18,8 @@ backend:
     # Only backend-to-backend communication needs CORS
     # Browser requests come through NGINX, which handles CORS
     origin:
-      - http://backend-catalog:7008    # Docker internal
-      - http://localhost:7008          # Fallback for local testing
-      - http://localhost:3000          # NGINX origin preservation
+      - http://backend-catalog:7008 # Docker internal
+      - http://localhost:7008 # Fallback for local testing
+      - http://localhost:3000 # NGINX origin preservation
 
 # Note: No proxy needed here - Custom DiscoveryService handles direct backend-to-backend communication

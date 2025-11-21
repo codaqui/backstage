@@ -1,18 +1,18 @@
 import { Content, Header, Page } from '@backstage/core-components';
 import {
+  Box,
+  Button,
   Card,
   CardContent,
-  Typography,
-  Grid,
   Chip,
-  Box,
   CircularProgress,
-  Button,
+  Grid,
+  Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
+import OpenInNewIcon from '@material-ui/icons/OpenInNew';
 import PeopleIcon from '@material-ui/icons/People';
 import ShareIcon from '@material-ui/icons/Share';
-import OpenInNewIcon from '@material-ui/icons/OpenInNew';
 import { useSystemResources } from '../hooks/useSystemResources';
 
 const useStyles = makeStyles(theme => ({
@@ -56,7 +56,7 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-export const SocialResourcesPage = () => {
+export const SocialResourcesPage = (): JSX.Element => {
   const classes = useStyles();
   const { resources, loading, error } = useSystemResources('social-resources');
 
@@ -94,7 +94,11 @@ export const SocialResourcesPage = () => {
       />
       <Content>
         <Box className={classes.statsBox}>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
             <Box display="flex" alignItems="center" style={{ gap: 16 }}>
               <PeopleIcon className={classes.mainIcon} />
               <Box>
@@ -121,7 +125,8 @@ export const SocialResourcesPage = () => {
                 Nenhum recurso cadastrado ainda
               </Typography>
               <Typography color="textSecondary">
-                Os recursos sociais aparecerão aqui quando forem adicionados ao catálogo.
+                Os recursos sociais aparecerão aqui quando forem adicionados ao
+                catálogo.
               </Typography>
             </CardContent>
           </Card>
@@ -131,13 +136,17 @@ export const SocialResourcesPage = () => {
               <Grid item xs={12} sm={6} md={4} key={resource.name}>
                 <Card className={classes.resourceCard}>
                   <CardContent>
-                    <Box display="flex" alignItems="center" style={{ gap: 8, marginBottom: 8 }}>
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      style={{ gap: 8, marginBottom: 8 }}
+                    >
                       <ShareIcon color="secondary" />
                       <Typography variant="h6" noWrap>
                         {resource.title}
                       </Typography>
                     </Box>
-                    
+
                     <Chip
                       label={resource.type}
                       size="small"

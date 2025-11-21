@@ -25,9 +25,15 @@ import { entityPage } from './components/catalog/EntityPage';
 import { searchPage } from './components/search/SearchPage';
 import { Root } from './components/Root';
 import { HomePage } from './components/home';
-import { WhatsAppGroupsPage, LearningResourcesPage, SocialResourcesPage, KubernetesResourcesPage } from './pages';
+import {
+  WhatsAppGroupsPage,
+  LearningResourcesPage,
+  SocialResourcesPage,
+  KubernetesResourcesPage,
+} from './pages';
 import { codaquiLightTheme, codaquiDarkTheme } from './theme/codaquiTheme';
 import { UnifiedThemeProvider } from '@backstage/theme';
+import { AnnouncementsPage } from '@backstage-community/plugin-announcements';
 
 import {
   AlertDisplay,
@@ -138,6 +144,7 @@ const routes = (
         </RequirePermission>
       }
     />
+    <Route path="/announcements" element={<AnnouncementsPage />} />
     <Route path="/search" element={<SearchPage />}>
       {searchPage}
     </Route>

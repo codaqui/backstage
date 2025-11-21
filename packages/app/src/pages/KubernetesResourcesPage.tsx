@@ -1,33 +1,34 @@
+/* eslint-disable dot-notation */
 import { Content, Header, Page } from '@backstage/core-components';
 import {
+  Box,
+  Button,
   Card,
   CardContent,
-  Typography,
-  Grid,
   Chip,
-  Box,
   CircularProgress,
-  Button,
+  Grid,
+  InputAdornment,
+  Paper,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
   TablePagination,
-  Paper,
+  TableRow,
   Tabs,
-  Tab,
   TextField,
-  InputAdornment,
+  Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import CloudQueueIcon from '@material-ui/icons/CloudQueue';
 import CheckCircleIcon from '@material-ui/icons/CheckCircle';
+import CloudQueueIcon from '@material-ui/icons/CloudQueue';
 import SearchIcon from '@material-ui/icons/Search';
 import { Link } from 'react-router-dom';
+import React from 'react';
 import { useKubernetesResources } from '../hooks/useKubernetesResources';
-import React, { useState } from 'react';
 
 const useStyles = makeStyles(theme => ({
   statsBox: {
@@ -74,10 +75,10 @@ const useStyles = makeStyles(theme => ({
     marginTop: theme.spacing(2),
   },
   catalogedRow: {
-    backgroundColor: theme.palette.success.light + '10',
+    backgroundColor: `${theme.palette.success.light}10`,
   },
   uncatalogedRow: {
-    backgroundColor: theme.palette.warning.light + '10',
+    backgroundColor: `${theme.palette.warning.light}10`,
   },
   chipContainer: {
     display: 'flex',
@@ -99,7 +100,7 @@ interface TabPanelProps {
   value: number;
 }
 
-function TabPanel(props: TabPanelProps) {
+function TabPanel(props: TabPanelProps): JSX.Element {
   const { children, value, index, ...other } = props;
   return (
     <div
@@ -113,11 +114,170 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-export const KubernetesResourcesPage = () => {
+/**
+ * Kubernetes resource display interface
+ * Imported from useKubernetesResources hook for consistency
+ */
+interface KubernetesResource {
+  kind: string;
+  name: string;
+  namespace: string;
+  cluster: string;
+  labels: Record<string, string>;
+  cataloged: boolean;
+  catalogEntity?: string;
+}
+
+interface ResourcesTableProps {
+  resources: KubernetesResource[];
+  classes: Record<string, string>;
+}
+
+const ResourcesTable = ({
+  resources,
+  classes,
+}: ResourcesTableProps): JSX.Element => {
+  const [page, setPage] = React.useState(0);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  const handleChangePage = (_event: unknown, newPage: number): void => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ): void => {
+    const parsed = Number.parseInt(event.target.value, 10);
+    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+      setRowsPerPage(parsed);
+    } else {
+      // fallback to default value
+      setRowsPerPage(10);
+    }
+    setPage(0);
+  };
+
+  if (resources.length === 0) {
+    return (
+      <Box p={3} textAlign="center">
+        <Typography variant="h6" color="textSecondary">
+          Nenhum recurso encontrado
+        </Typography>
+      </Box>
+    );
+  }
+
+  const start = page * rowsPerPage;
+  const end = start + rowsPerPage;
+  const visible = resources.slice(start, end);
+
+  return (
+    <>
+      <TableContainer className={classes['table']}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Status</TableCell>
+              <TableCell>Tipo</TableCell>
+              <TableCell>Nome</TableCell>
+              <TableCell>Namespace</TableCell>
+              <TableCell>Cluster</TableCell>
+              <TableCell>Labels</TableCell>
+              <TableCell>Ação</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {visible.map((resource, idx) => (
+              <TableRow
+                key={`${resource.cluster}-${resource.namespace}-${resource.name}-${idx}`}
+                className={
+                  resource.cataloged
+                    ? classes['catalogedRow']
+                    : classes['uncatalogedRow']
+                }
+              >
+                <TableCell>
+                  <Box display="flex" alignItems="center">
+                    <CheckCircleIcon className={classes['catalogedIcon']} />{' '}
+                    <Typography variant="body2">Catalogado</Typography>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Chip label={resource.kind} size="small" />
+                </TableCell>
+                <TableCell>{resource.name}</TableCell>
+                <TableCell>{resource.namespace}</TableCell>
+                <TableCell>{resource.cluster}</TableCell>
+                <TableCell>
+                  <div className={classes['chipContainer']}>
+                    {' '}
+                    {Object.entries(resource.labels)
+                      .slice(0, 3)
+                      .map(([key, value]) => (
+                        <Chip
+                          key={key}
+                          label={`${key}: ${value}`}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    {Object.keys(resource.labels).length > 3 && (
+                      <Chip
+                        label={`+${Object.keys(resource.labels).length - 3}`}
+                        size="small"
+                      />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {resource.cataloged && resource.catalogEntity ? (
+                    <Button
+                      component={Link}
+                      to={`/catalog/${resource.catalogEntity}`}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                    >
+                      Ver no Catálogo
+                    </Button>
+                  ) : (
+                    <Button
+                      component={Link}
+                      to="/create"
+                      size="small"
+                      variant="contained"
+                      color="primary"
+                    >
+                      Catalogar
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Box display="flex" justifyContent="flex-end" mt={2}>
+        <TablePagination
+          component="div"
+          count={resources.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+        />
+      </Box>
+    </>
+  );
+};
+
+export const KubernetesResourcesPage = (): JSX.Element => {
   const classes = useStyles();
   const { data, loading, error } = useKubernetesResources();
-  const [tabValue, setTabValue] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [tabValue, setTabValue] = React.useState(0);
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   if (loading) {
     return (
@@ -156,7 +316,10 @@ export const KubernetesResourcesPage = () => {
     );
   }
 
-  const handleTabChange = (_event: React.ChangeEvent<{}>, newValue: number) => {
+  const handleTabChange = (
+    _event: React.ChangeEvent<{}>,
+    newValue: number,
+  ): void => {
     setTabValue(newValue);
   };
 
@@ -184,8 +347,14 @@ export const KubernetesResourcesPage = () => {
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6} md={6}>
               <Card className={classes.statsCard} elevation={2}>
-                <CloudQueueIcon style={{ fontSize: 48, color: '#1976d2', marginBottom: 8 }} />
-                <Typography variant="h2" className={classes.statValue} style={{ color: '#1976d2' }}>
+                <CloudQueueIcon
+                  style={{ fontSize: 48, color: '#1976d2', marginBottom: 8 }}
+                />
+                <Typography
+                  variant="h2"
+                  className={classes.statValue}
+                  style={{ color: '#1976d2' }}
+                >
                   {data.clusters.length}
                 </Typography>
                 <Typography className={classes.statLabel} color="textSecondary">
@@ -195,8 +364,14 @@ export const KubernetesResourcesPage = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={6}>
               <Card className={classes.statsCard} elevation={2}>
-                <CheckCircleIcon style={{ fontSize: 48, color: '#4caf50', marginBottom: 8 }} />
-                <Typography variant="h2" className={classes.statValue} style={{ color: '#4caf50' }}>
+                <CheckCircleIcon
+                  style={{ fontSize: 48, color: '#4caf50', marginBottom: 8 }}
+                />
+                <Typography
+                  variant="h2"
+                  className={classes.statValue}
+                  style={{ color: '#4caf50' }}
+                >
                   {data.catalogedCount}
                 </Typography>
                 <Typography className={classes.statLabel} color="textSecondary">
@@ -249,10 +424,16 @@ export const KubernetesResourcesPage = () => {
                   <Card>
                     <CardContent>
                       <Typography variant="h5" gutterBottom>
-                        <CloudQueueIcon style={{ verticalAlign: 'middle', marginRight: 8 }} />
+                        <CloudQueueIcon
+                          style={{ verticalAlign: 'middle', marginRight: 8 }}
+                        />
                         {cluster.name}
                       </Typography>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        gutterBottom
+                      >
                         URL: {cluster.url}
                       </Typography>
                       <Typography variant="body1" style={{ marginTop: 16 }}>
@@ -260,7 +441,9 @@ export const KubernetesResourcesPage = () => {
                       </Typography>
                       <Box display="flex" marginTop={2} style={{ gap: 8 }}>
                         <Chip
-                          label={`${cluster.resources.filter(r => r.cataloged).length} Catalogados`}
+                          label={`${
+                            cluster.resources.filter(r => r.cataloged).length
+                          } Catalogados`}
                           color="primary"
                           size="small"
                         />
@@ -274,148 +457,5 @@ export const KubernetesResourcesPage = () => {
         </Paper>
       </Content>
     </Page>
-  );
-};
-
-interface KubernetesResource {
-  name: string;
-  namespace?: string;
-  kind?: string;
-  cluster: string;
-  labels: Record<string, string>;
-  cataloged?: boolean;
-  catalogEntity?: string;
-  [key: string]: any; // Add other properties as needed
-}
-
-interface ResourcesTableProps {
-  resources: KubernetesResource[];
-  classes: Record<string, string>;
-}
-
-const ResourcesTable = ({ resources, classes }: ResourcesTableProps) => {
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
-
-  const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const parsed = Number.parseInt(event.target.value, 10);
-    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
-      setRowsPerPage(parsed);
-    } else {
-      // fallback to default value
-      setRowsPerPage(10);
-    }
-    setPage(0);
-  };
-
-  if (resources.length === 0) {
-    return (
-      <Box p={3} textAlign="center">
-        <Typography variant="h6" color="textSecondary">
-          Nenhum recurso encontrado
-        </Typography>
-      </Box>
-    );
-  }
-
-  const start = page * rowsPerPage;
-  const end = start + rowsPerPage;
-  const visible = resources.slice(start, end);
-
-  return (
-    <>
-      <TableContainer className={classes.table}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Status</TableCell>
-              <TableCell>Tipo</TableCell>
-              <TableCell>Nome</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Cluster</TableCell>
-              <TableCell>Labels</TableCell>
-              <TableCell>Ação</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {visible.map((resource, idx) => (
-              <TableRow
-                key={`${resource.cluster}-${resource.namespace}-${resource.name}-${idx}`}
-                className={resource.cataloged ? classes.catalogedRow : classes.uncatalogedRow}
-              >
-                <TableCell>
-                  <Box display="flex" alignItems="center">
-                    <CheckCircleIcon className={classes.catalogedIcon} />
-                    <Typography variant="body2">Catalogado</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  <Chip label={resource.kind} size="small" />
-                </TableCell>
-                <TableCell>{resource.name}</TableCell>
-                <TableCell>{resource.namespace}</TableCell>
-                <TableCell>{resource.cluster}</TableCell>
-                <TableCell>
-                  <div className={classes.chipContainer}>
-                    {Object.entries(resource.labels)
-                      .slice(0, 3)
-                      .map(([key, value]) => (
-                        <Chip
-                          key={key}
-                          label={`${key}: ${value}`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      ))}
-                    {Object.keys(resource.labels).length > 3 && (
-                      <Chip label={`+${Object.keys(resource.labels).length - 3}`} size="small" />
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {resource.cataloged && resource.catalogEntity ? (
-                    <Button
-                      component={Link}
-                      to={`/catalog/${resource.catalogEntity}`}
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                    >
-                      Ver no Catálogo
-                    </Button>
-                  ) : (
-                    <Button
-                      component={Link}
-                      to="/create"
-                      size="small"
-                      variant="contained"
-                      color="primary"
-                    >
-                      Catalogar
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Box display="flex" justifyContent="flex-end" mt={2}>
-        <TablePagination
-          component="div"
-          count={resources.length}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-        />
-      </Box>
-    </>
   );
 };

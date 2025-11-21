@@ -1,17 +1,14 @@
 import { createBackend } from '@backstage/backend-defaults';
-import { createBackendModule } from '@backstage/backend-plugin-api';
+import {
+  coreServices,
+  createBackendModule,
+} from '@backstage/backend-plugin-api';
 import { githubOrgEntityProviderTransformsExtensionPoint } from '@backstage/plugin-catalog-backend-module-github-org';
-import { myTeamTransformer, myUserTransformer } from './transformers';
-import { 
+import {
+  customDiscoveryServiceFactory,
   permissionsPolicyExtension,
-  customDiscoveryServiceFactory 
 } from '@internal/backend-common';
-
-// Debug Environment Variables
-console.log('🔍 Backend Catalog - Environment Variables:');
-console.log(`   CATALOG_SERVICE_URL: ${process.env.CATALOG_SERVICE_URL}`);
-console.log(`   MAIN_SERVICE_URL: ${process.env.MAIN_SERVICE_URL}`);
-console.log(`   BACKEND_SECRET: ${process.env.BACKEND_SECRET ? '***[SET]' : 'NOT SET'}`);
+import { myTeamTransformer, myUserTransformer } from './transformers';
 
 // GitHub Org Module - Custom transformers for users and teams
 const githubOrgModule = createBackendModule({
@@ -31,6 +28,30 @@ const githubOrgModule = createBackendModule({
 });
 
 const backend = createBackend();
+
+// Log environment configuration at startup
+const logStartupConfig = createBackendModule({
+  pluginId: 'app',
+  moduleId: 'startup-logger',
+  register(env) {
+    env.registerInit({
+      deps: { logger: coreServices.logger },
+      async init({ logger }) {
+        logger.info('🚀 Backend Catalog starting up');
+        logger.debug('Environment configuration', {
+          // eslint-disable-next-line dot-notation
+          catalogServiceUrl: process.env['CATALOG_SERVICE_URL'] || 'not set',
+          // eslint-disable-next-line dot-notation
+          mainServiceUrl: process.env['MAIN_SERVICE_URL'] || 'not set',
+          // eslint-disable-next-line dot-notation
+          backendSecretConfigured: !!process.env['BACKEND_SECRET'],
+        });
+      },
+    });
+  },
+});
+
+backend.add(logStartupConfig);
 
 // Replace default Discovery Service with custom implementation
 // This enables direct service-to-service communication (K8s ready)

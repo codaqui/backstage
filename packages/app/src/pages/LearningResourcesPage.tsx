@@ -1,18 +1,18 @@
 import { Content, Header, Page } from '@backstage/core-components';
 import {
+  Box,
+  Button,
   Card,
   CardContent,
-  Typography,
-  Grid,
   Chip,
-  Box,
   CircularProgress,
-  Button,
+  Grid,
+  Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import SchoolIcon from '@material-ui/icons/School';
 import BookIcon from '@material-ui/icons/Book';
 import OpenInNewIcon from '@material-ui/icons/OpenInNew';
+import SchoolIcon from '@material-ui/icons/School';
 import { useSystemResources } from '../hooks/useSystemResources';
 
 const useStyles = makeStyles(theme => ({
@@ -56,9 +56,10 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-export const LearningResourcesPage = () => {
+export const LearningResourcesPage = (): JSX.Element => {
   const classes = useStyles();
-  const { resources, loading, error } = useSystemResources('learning-resources');
+  const { resources, loading, error } =
+    useSystemResources('learning-resources');
 
   if (loading) {
     return (
@@ -94,7 +95,11 @@ export const LearningResourcesPage = () => {
       />
       <Content>
         <Box className={classes.statsBox}>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
             <Box display="flex" alignItems="center" style={{ gap: 16 }}>
               <SchoolIcon className={classes.mainIcon} />
               <Box>
@@ -121,7 +126,8 @@ export const LearningResourcesPage = () => {
                 Nenhum recurso cadastrado ainda
               </Typography>
               <Typography color="textSecondary">
-                Os recursos de aprendizado aparecerão aqui quando forem adicionados ao catálogo.
+                Os recursos de aprendizado aparecerão aqui quando forem
+                adicionados ao catálogo.
               </Typography>
             </CardContent>
           </Card>
@@ -131,13 +137,17 @@ export const LearningResourcesPage = () => {
               <Grid item xs={12} sm={6} md={4} key={resource.name}>
                 <Card className={classes.resourceCard}>
                   <CardContent>
-                    <Box display="flex" alignItems="center" style={{ gap: 8, marginBottom: 8 }}>
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      style={{ gap: 8, marginBottom: 8 }}
+                    >
                       <BookIcon color="primary" />
                       <Typography variant="h6" noWrap>
                         {resource.title}
                       </Typography>
                     </Box>
-                    
+
                     <Chip
                       label={resource.type}
                       size="small"

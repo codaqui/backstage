@@ -1,18 +1,18 @@
 import { Content, Header, Page } from '@backstage/core-components';
 import {
+  Box,
+  Button,
   Card,
   CardContent,
-  Typography,
-  Grid,
   Chip,
-  Box,
   CircularProgress,
-  Button,
+  Grid,
+  Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import WhatsAppIcon from '@material-ui/icons/WhatsApp';
 import GroupIcon from '@material-ui/icons/Group';
 import OpenInNewIcon from '@material-ui/icons/OpenInNew';
+import WhatsAppIcon from '@material-ui/icons/WhatsApp';
 import { useWhatsAppGroups } from '../hooks';
 
 const useStyles = makeStyles(theme => ({
@@ -52,7 +52,7 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-export const WhatsAppGroupsPage = () => {
+export const WhatsAppGroupsPage = (): JSX.Element => {
   const classes = useStyles();
   const { groups, loading, error } = useWhatsAppGroups();
 
@@ -90,7 +90,11 @@ export const WhatsAppGroupsPage = () => {
       />
       <Content>
         <Box className={classes.statsBox}>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
             <Box display="flex" alignItems="center" style={{ gap: 16 }}>
               <WhatsAppIcon className={classes.whatsappIcon} />
               <Box>
@@ -119,7 +123,8 @@ export const WhatsAppGroupsPage = () => {
                 Nenhum grupo cadastrado ainda
               </Typography>
               <Typography color="textSecondary">
-                Os grupos WhatsApp aparecerão aqui quando forem adicionados ao catálogo.
+                Os grupos WhatsApp aparecerão aqui quando forem adicionados ao
+                catálogo.
               </Typography>
             </CardContent>
           </Card>
@@ -129,13 +134,17 @@ export const WhatsAppGroupsPage = () => {
               <Grid item xs={12} sm={6} md={4} lg={3} key={group.name}>
                 <Card className={classes.groupCard}>
                   <CardContent>
-                    <Box display="flex" alignItems="center" style={{ gap: 8, marginBottom: 8 }}>
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      style={{ gap: 8, marginBottom: 8 }}
+                    >
                       <GroupIcon color="primary" />
                       <Typography variant="h6" noWrap>
                         {group.title}
                       </Typography>
                     </Box>
-                    
+
                     <Typography
                       variant="body2"
                       color="textSecondary"
@@ -147,7 +156,12 @@ export const WhatsAppGroupsPage = () => {
                     {group.tags.length > 0 && (
                       <div className={classes.chipContainer}>
                         {group.tags.map(tag => (
-                          <Chip key={tag} label={tag} size="small" color="primary" />
+                          <Chip
+                            key={tag}
+                            label={tag}
+                            size="small"
+                            color="primary"
+                          />
                         ))}
                       </div>
                     )}

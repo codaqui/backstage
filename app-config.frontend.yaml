@@ -9,7 +9,7 @@ backend:
   # Frontend should make API calls to itself (nginx will proxy)
   # This avoids CORS issues and allows nginx to route to correct backend
   baseUrl: http://localhost:3000
-  
+
   # CORS not needed when frontend proxies through nginx
   cors:
     origin: http://localhost:3000

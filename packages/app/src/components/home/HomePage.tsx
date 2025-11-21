@@ -1,28 +1,28 @@
-import React from 'react';
 import { Content, Page } from '@backstage/core-components';
+import {
+  HomePageStarredEntities,
+  HomePageToolkit,
+} from '@backstage/plugin-home';
 import { HomePageSearchBar } from '@backstage/plugin-search';
 import { SearchContextProvider } from '@backstage/plugin-search-react';
 import {
-  HomePageToolkit,
-  HomePageStarredEntities,
-} from '@backstage/plugin-home';
-import { CodaquiWelcomeCard } from './CodaquiWelcomeCard';
-import { useResourceCounts } from '../../hooks';
-import {
+  Box,
+  Card,
+  CardActionArea,
+  CardContent,
+  Chip,
+  CircularProgress,
   Grid,
   makeStyles,
-  Card,
-  CardContent,
   Typography,
-  CardActionArea,
-  Chip,
-  Box,
-  CircularProgress,
 } from '@material-ui/core';
-import WhatsAppIcon from '@material-ui/icons/WhatsApp';
-import SchoolIcon from '@material-ui/icons/School';
 import ChatIcon from '@material-ui/icons/Chat';
 import PublicIcon from '@material-ui/icons/Public';
+import SchoolIcon from '@material-ui/icons/School';
+import WhatsAppIcon from '@material-ui/icons/WhatsApp';
+import { useNavigate } from 'react-router-dom';
+import { useResourceCounts } from '../../hooks';
+import { CodaquiWelcomeCard } from './CodaquiWelcomeCard';
 
 const useStyles = makeStyles(theme => ({
   searchBar: {
@@ -96,7 +96,7 @@ const CommunityResource = ({
   chips: string[];
   cardClass: string;
   onClick?: () => void;
-}) => {
+}): JSX.Element => {
   const classes = useStyles();
 
   return (
@@ -123,8 +123,9 @@ const CommunityResource = ({
   );
 };
 
-export const HomePage = () => {
+export const HomePage = (): JSX.Element => {
   const classes = useStyles();
+  const navigate = useNavigate();
   const { counts, loading: countsLoading } = useResourceCounts();
 
   const whatsappCount = counts?.whatsapp || 0;
@@ -140,7 +141,8 @@ export const HomePage = () => {
               🚀 Bem-vindo à Codaqui!
             </Typography>
             <Typography variant="h5" component="p">
-              Somos uma Associação com o desejo de democratizar o aprendizado tecnológico e aproximar novas gerações do conteúdo técnico.
+              Somos uma Associação com o desejo de democratizar o aprendizado
+              tecnológico e aproximar novas gerações do conteúdo técnico.
             </Typography>
             <Typography variant="body1" style={{ marginTop: 16 }}>
               Tudo isso, sem custo algum, graças à força da nossa comunidade!
@@ -162,7 +164,9 @@ export const HomePage = () => {
                 ) : (
                   <>
                     <Typography variant="h3">{learningCount}</Typography>
-                    <Typography variant="body2">Recursos de Aprendizado</Typography>
+                    <Typography variant="body2">
+                      Recursos de Aprendizado
+                    </Typography>
                   </>
                 )}
               </div>
@@ -193,7 +197,7 @@ export const HomePage = () => {
                 icon={<WhatsAppIcon className={classes.categoryIcon} />}
                 chips={['Chat', 'Comunidade', 'Networking']}
                 cardClass={classes.whatsappCard}
-                onClick={() => window.location.href = '/whatsapp-groups'}
+                onClick={() => navigate('/whatsapp-groups')}
               />
             </Grid>
 
@@ -205,7 +209,7 @@ export const HomePage = () => {
                 icon={<SchoolIcon className={classes.categoryIcon} />}
                 chips={['Trilhas', 'Blog', 'Cursos', 'Documentação']}
                 cardClass={classes.learningCard}
-                onClick={() => window.location.href = '/learning-resources'}
+                onClick={() => navigate('/learning-resources')}
               />
             </Grid>
 
@@ -217,7 +221,7 @@ export const HomePage = () => {
                 icon={<ChatIcon className={classes.categoryIcon} />}
                 chips={['Discord', 'YouTube', 'GitHub', 'Social']}
                 cardClass={classes.socialCard}
-                onClick={() => window.location.href = '/social-resources'}
+                onClick={() => navigate('/social-resources')}
               />
             </Grid>
           </Grid>
