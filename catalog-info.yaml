@@ -3,6 +3,8 @@ kind: Component
 metadata:
   name: codaqui-backstage
   description: Portal Backstage da Codaqui - Central de recursos e comunicação da comunidade
+  annotations:
+    github.com/project-slug: codaqui/backstage
   links:
     - url: https://github.com/codaqui/backstage
       title: Codaqui Backstage GitHub Repository
