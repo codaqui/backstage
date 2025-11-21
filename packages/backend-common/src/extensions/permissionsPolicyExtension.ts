@@ -115,6 +115,25 @@ const PERMISSION_CONFIG = {
 } as const;
 
 // ==============================================================================
+// 🛠️ PRE-COMPUTED NORMALIZED GROUP REFS (CACHED AT MODULE LOAD)
+// ==============================================================================
+
+/**
+ * Pre-computed normalized group refs for efficient lookups
+ * Computed once at module load time to avoid repeated work
+ */
+const NORMALIZED_GROUP_REFS = new Map<GroupNames, Set<string>>();
+for (const [groupKey, groupRefs] of Object.entries(
+  PERMISSION_CONFIG.SPECIAL_GROUPS,
+)) {
+  const groupName = groupKey as GroupNames;
+  NORMALIZED_GROUP_REFS.set(
+    groupName,
+    new Set(groupRefs.map(ref => ref.toLowerCase())),
+  );
+}
+
+// ==============================================================================
 // 🛠️ PERMISSION VERIFICATION UTILITIES
 // ==============================================================================
 
@@ -174,20 +193,8 @@ function getUserGroupsAndPermissions(userEntityRefs: string[]): {
   const matchedGroups: GroupNames[] = [];
   const permissionsSet = new Set<string>();
 
-  // Pre-compute normalized group refs (done once, cached)
-  const normalizedGroupRefs = new Map<GroupNames, Set<string>>();
-  for (const [groupKey, groupRefs] of Object.entries(
-    PERMISSION_CONFIG.SPECIAL_GROUPS,
-  )) {
-    const groupName = groupKey as GroupNames;
-    normalizedGroupRefs.set(
-      groupName,
-      new Set(groupRefs.map(ref => ref.toLowerCase())),
-    );
-  }
-
-  // Check group membership efficiently
-  for (const [groupName, normalizedRefs] of normalizedGroupRefs) {
+  // Check group membership efficiently using pre-computed refs
+  for (const [groupName, normalizedRefs] of NORMALIZED_GROUP_REFS) {
     const hasMatch = Array.from(normalizedRefs).some(ref =>
       normalizedUserRefs.has(ref),
     );
