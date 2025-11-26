@@ -10,7 +10,7 @@ ARG ENABLE_K8S=false
 ARG BACKEND_PACKAGE=backend
 ENV NODE_ENV=${NODE_ENV:-development}
 ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
-ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
+ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.yaml,app-config.docker.yaml"}
 
 # Set Python interpreter for `node-gyp` to use
 ENV PYTHON=/usr/bin/python3
@@ -87,7 +87,7 @@ ARG ENABLE_K8S=false
 ARG BACKEND_PACKAGE=backend
 ENV NODE_ENV=${NODE_ENV:-development}
 ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
-ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.local.yaml"}
+ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.yaml,app-config.docker.yaml"}
 
 # Set Python interpreter for `node-gyp` to use
 ENV PYTHON=/usr/bin/python3
