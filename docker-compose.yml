@@ -70,6 +70,7 @@ services:
         CONFIG_FILE: 'app-config.yaml,app-config.docker.yaml,app-config.catalog.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}'
         NODE_ENV: production
         ENABLE_K8S: ${CODAQUI_TESTING_WITH_KUBERNETES:-false}
+        NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=4096}
     container_name: codaqui-portal-backend-catalog
     env_file:
       - path: .env.example
@@ -111,6 +112,7 @@ services:
         CONFIG_FILE: 'app-config.yaml,app-config.docker.yaml,app-config.main.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}'
         NODE_ENV: production
         ENABLE_K8S: ${CODAQUI_TESTING_WITH_KUBERNETES:-false}
+        NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=4096}
     container_name: codaqui-portal-backend-main
     env_file:
       - path: .env.example
