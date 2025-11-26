@@ -59,8 +59,7 @@ RUN if [ "${ENABLE_K8S}" != "true" ]; then \
     fi
 
 # Build the frontend with production config (support multiple config files)
-# Use app-config.frontend.yaml to ensure frontend uses nginx proxy
-RUN yarn workspace app build --config ../../app-config.yaml --config ../../app-config.frontend.yaml
+RUN yarn workspace app build --config ../../app-config.yaml
 
 # Stage 2: Serve with nginx
 FROM public.ecr.aws/nginx/nginx:mainline-alpine

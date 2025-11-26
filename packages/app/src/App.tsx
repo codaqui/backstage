@@ -52,6 +52,7 @@ import {
   convertLegacyAppOptions,
   convertLegacyAppRoot,
 } from '@backstage/core-compat-api';
+import adrPlugin from '@backstage-community/plugin-adr/alpha';
 
 const convertedOptionsModule = convertLegacyAppOptions({
   apis,
@@ -153,7 +154,7 @@ const convertedRootFeatures = convertLegacyAppRoot(
 );
 
 const app = createApp({
-  features: [convertedOptionsModule, ...convertedRootFeatures],
+  features: [adrPlugin, convertedOptionsModule, ...convertedRootFeatures],
   bindRoutes({ bind }) {
     bind(catalogPlugin.externalRoutes, {
       createComponent: scaffolderPlugin.routes.root,
