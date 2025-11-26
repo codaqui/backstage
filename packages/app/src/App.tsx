@@ -40,7 +40,7 @@ import {
   OAuthRequestDialog,
   SignInPage,
 } from '@backstage/core-components';
-import { createApp } from '@backstage/app-defaults';
+import { createApp } from '@backstage/frontend-defaults';
 import { AppRouter, FlatRoutes } from '@backstage/core-app-api';
 import { CatalogGraphPage } from '@backstage/plugin-catalog-graph';
 import { RequirePermission } from '@backstage/plugin-permission-react';
@@ -48,8 +48,12 @@ import { catalogEntityCreatePermission } from '@backstage/plugin-catalog-common/
 import { NotificationsPage } from '@backstage/plugin-notifications';
 import { SignalsDisplay } from '@backstage/plugin-signals';
 import { githubAuthApiRef } from '@backstage/core-plugin-api';
+import {
+  convertLegacyAppOptions,
+  convertLegacyAppRoot,
+} from '@backstage/core-compat-api';
 
-const app = createApp({
+const convertedOptionsModule = convertLegacyAppOptions({
   apis,
   themes: [
     {
@@ -91,23 +95,6 @@ const app = createApp({
         ]}
       />
     ),
-  },
-  bindRoutes({ bind }) {
-    bind(catalogPlugin.externalRoutes, {
-      createComponent: scaffolderPlugin.routes.root,
-      viewTechDoc: techdocsPlugin.routes.docRoot,
-      createFromTemplate: scaffolderPlugin.routes.selectedTemplate,
-    });
-    bind(apiDocsPlugin.externalRoutes, {
-      registerApi: catalogImportPlugin.routes.importPage,
-    });
-    bind(scaffolderPlugin.externalRoutes, {
-      registerComponent: catalogImportPlugin.routes.importPage,
-      viewTechDoc: techdocsPlugin.routes.docRoot,
-    });
-    bind(orgPlugin.externalRoutes, {
-      catalogIndex: catalogPlugin.routes.catalogIndex,
-    });
   },
 });
 
@@ -154,7 +141,7 @@ const routes = (
   </FlatRoutes>
 );
 
-export default app.createRoot(
+const convertedRootFeatures = convertLegacyAppRoot(
   <>
     <AlertDisplay />
     <OAuthRequestDialog />
@@ -164,3 +151,26 @@ export default app.createRoot(
     </AppRouter>
   </>,
 );
+
+const app = createApp({
+  features: [convertedOptionsModule, ...convertedRootFeatures],
+  bindRoutes({ bind }) {
+    bind(catalogPlugin.externalRoutes, {
+      createComponent: scaffolderPlugin.routes.root,
+      viewTechDoc: techdocsPlugin.routes.docRoot,
+      createFromTemplate: scaffolderPlugin.routes.selectedTemplate,
+    });
+    bind(apiDocsPlugin.externalRoutes, {
+      registerApi: catalogImportPlugin.routes.importPage,
+    });
+    bind(scaffolderPlugin.externalRoutes, {
+      registerComponent: catalogImportPlugin.routes.importPage,
+      viewTechDoc: techdocsPlugin.routes.docRoot,
+    });
+    bind(orgPlugin.externalRoutes, {
+      catalogIndex: catalogPlugin.routes.catalogIndex,
+    });
+  },
+});
+
+export default app.createRoot();
