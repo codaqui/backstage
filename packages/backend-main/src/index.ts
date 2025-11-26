@@ -159,5 +159,13 @@ backend.add(
   import('@backstage-community/plugin-search-backend-module-announcements'),
 );
 
+// adr plugin
+// https://github.com/backstage/community-plugins/blob/main/workspaces/adr/plugins/adr-backend/README.md
+backend.add(import('@backstage-community/plugin-adr-backend'));
+
+// adr search
+// https://github.com/backstage/community-plugins/blob/main/workspaces/adr/plugins/search-backend-module-adr/README.md
+backend.add(import('@backstage-community/search-backend-module-adr'));
+
 // Let's go! Start!
 backend.start();

@@ -57,6 +57,7 @@ const MAIN_PLUGINS = [
   'announcements',
   'categories',
   'tags',
+  'adr',
 ] as const;
 
 /**

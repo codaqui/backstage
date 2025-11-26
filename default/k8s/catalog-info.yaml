@@ -8,6 +8,7 @@ metadata:
     backstage.io/kubernetes-id: example-component
     backstage.io/kubernetes-namespace: backstage-test
     backstage.io/kubernetes-label-selector: 'app=example-app'
+    backstage.io/adr-location: https://github.com/codaqui/backstage/tree/main/default/k8s/adrs/
   tags:
     - example
     - kubernetes
