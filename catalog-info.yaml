@@ -5,6 +5,7 @@ metadata:
   description: Portal Backstage da Codaqui - Central de recursos e comunicação da comunidade
   annotations:
     github.com/project-slug: codaqui/backstage
+    backstage.io/adr-location: ./docs/adrs
   links:
     - url: https://github.com/codaqui/backstage
       title: Codaqui Backstage GitHub Repository
