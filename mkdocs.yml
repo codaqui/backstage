@@ -1,0 +1,12 @@
+site_name: ${{values.component_id}}
+site_description: ${{values.description}}
+
+nav:
+  - Introduction: index.md
+
+plugins:
+  - techdocs-core
+
+theme:
+  name: material
+  font: false
