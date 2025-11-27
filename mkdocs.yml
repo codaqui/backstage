@@ -1,5 +1,6 @@
 site_name: ${{values.component_id}}
 site_description: ${{values.description}}
+repo_url: https://github.com/codaqui/backstage
 
 nav:
   - Introduction: index.md
