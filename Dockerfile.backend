@@ -142,8 +142,6 @@ COPY --chown=node:node app-config*.yaml ./
 # Copy default resources (all of them from build stage)
 COPY --from=build --chown=node:node /app/default ./default
 
-EXPOSE 7007
-
 # Updated CMD to support multiple config files (comma-separated)
 ARG BACKEND_PACKAGE
 ENV BACKEND_PACKAGE=${BACKEND_PACKAGE}
