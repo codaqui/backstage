@@ -98,6 +98,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     python3 \
+    python3-pip \
+    python3-venv \
     libsqlite3-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -108,6 +110,13 @@ RUN corepack enable
 # Create cache directory for corepack and set permissions
 RUN mkdir -p /home/node/.cache/node/corepack && \
     chown -R node:node /home/node/.cache
+
+# TechDocs Requirements
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+RUN pip3 install mkdocs-techdocs-core
+# End of TechDocs Requirements
 
 # From here on we use the least-privileged `node` user to run the backend.
 USER node

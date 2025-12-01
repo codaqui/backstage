@@ -42,7 +42,8 @@ server {
     }
 
     # Backend API proxy - routes all other APIs to backend-main
-    location /api/ {
+    # Use ^~ so this prefix match takes priority over the static-file regex
+    location ^~ /api/ {
         proxy_pass ${MAIN_SERVICE_URL}/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

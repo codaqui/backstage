@@ -24,7 +24,8 @@ backend:
 techdocs:
   builder: 'local' # Alternatives - 'external'
   generator:
-    runIn: 'docker' # Alternatives - 'local' | 'docker'
+    runIn: 'local' # Alternatives - 'local' | 'docker'
+    # pullImage: true
   publisher:
     type: 'local' # Alternatives - 'googleGcs' or 'awsS3'. Read documentation for using alternatives.
 
