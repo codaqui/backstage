@@ -21,7 +21,6 @@
     "@backstage-community/search-backend-module-adr": "^0.12.0",
     "@backstage/backend-defaults": "^0.13.0",
     "@backstage/backend-plugin-api": "^1.4.4",
-    "@backstage/catalog-model": "^1.7.5",
     "@backstage/config": "^1.3.5",
     "@backstage/plugin-auth-backend": "^0.25.5",
     "@backstage/plugin-auth-backend-module-github-provider": "^0.3.8",
