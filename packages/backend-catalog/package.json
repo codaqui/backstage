@@ -28,8 +28,7 @@
     "@backstage/plugin-catalog-backend-module-logs": "^0.1.16",
     "@backstage/plugin-catalog-backend-module-scaffolder-entity-model": "^0.2.14",
     "@backstage/plugin-permission-backend": "^0.7.6",
-    "@internal/backend-common": "workspace:^",
-    "pg": "^8.11.3"
+    "@internal/backend-common": "workspace:^"
   },
   "devDependencies": {
     "@backstage/cli": "^0.34.4",

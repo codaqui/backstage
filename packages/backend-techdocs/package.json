@@ -22,8 +22,7 @@
     "@backstage/plugin-auth-backend-module-guest-provider": "^0.2.13",
     "@backstage/plugin-permission-backend": "^0.7.5",
     "@backstage/plugin-techdocs-backend": "^2.1.1",
-    "@internal/backend-common": "workspace:^",
-    "pg": "^8.11.3"
+    "@internal/backend-common": "workspace:^"
   },
   "devDependencies": {
     "@backstage/cli": "^0.34.4",

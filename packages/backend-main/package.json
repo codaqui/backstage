@@ -37,14 +37,10 @@
     "@backstage/plugin-search-backend-module-pg": "^0.5.49",
     "@backstage/plugin-search-backend-module-techdocs": "^0.4.7",
     "@backstage/plugin-signals-backend": "^0.3.9",
-    "@internal/backend-common": "workspace:^",
-    "app": "link:../app",
-    "luxon": "^3.0.0",
-    "pg": "^8.11.3"
+    "@internal/backend-common": "workspace:^"
   },
   "devDependencies": {
     "@backstage/cli": "^0.34.4",
-    "@types/luxon": "^3",
     "webpack": "~5.96.0"
   },
   "files": [
