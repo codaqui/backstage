@@ -37,7 +37,6 @@
     "@backstage/plugin-search-backend-module-pg": "^0.5.49",
     "@backstage/plugin-search-backend-module-techdocs": "^0.4.7",
     "@backstage/plugin-signals-backend": "^0.3.9",
-    "@backstage/plugin-techdocs-backend": "^2.1.1",
     "@internal/backend-common": "workspace:^",
     "app": "link:../app",
     "luxon": "^3.0.0",
