@@ -39,4 +39,3 @@ techdocs:
     type: 'local' # Alternatives - 'googleGcs' or 'awsS3'. Read documentation for using alternatives.
   sanitizer:
     allowedIframeHosts: []
-

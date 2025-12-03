@@ -22,5 +22,4 @@ backend:
       - http://localhost:7008 # Fallback for local testing
       - http://localhost:3000 # NGINX origin preservation
     credentials: true
-
 # Note: No proxy needed here - Custom DiscoveryService handles direct backend-to-backend communication
