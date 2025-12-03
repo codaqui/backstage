@@ -79,6 +79,7 @@ services:
         required: false
     environment:
       - CATALOG_SERVICE_URL=http://backend-catalog:7008
+      - TECHDOCS_SERVICE_URL=http://backend-techdocs:7009
       - MAIN_SERVICE_URL=http://backend-main:7007
     ports:
       - '7008:7008'
@@ -100,8 +101,51 @@ services:
     networks:
       - backstage-network
 
+  # Backend TechDocs Service
+  # Responsible for: TechDocs generation and serving
+  backend-techdocs:
+    profiles: ['standard']
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        BACKEND_PACKAGE: backend-techdocs
+        CONFIG_FILE: 'app-config.yaml,app-config.docker.yaml,app-config.techdocs.yaml${CODAQUI_TESTING_WITH_KUBERNETES:+,app-config.k8s.yaml}'
+        NODE_ENV: production
+        ENABLE_K8S: ${CODAQUI_TESTING_WITH_KUBERNETES:-false}
+        NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=4096}
+    container_name: codaqui-portal-backend-techdocs
+    env_file:
+      - path: .env.example
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - CATALOG_SERVICE_URL=http://backend-catalog:7008
+      - TECHDOCS_SERVICE_URL=http://backend-techdocs:7009
+      - MAIN_SERVICE_URL=http://backend-main:7007
+    ports:
+      - '7009:7009'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '-f',
+          'http://localhost:7009/.backstage/health/v1/readiness',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - backstage-network
+
   # Backend Main Service
-  # Responsible for: Auth, Scaffolder, TechDocs, Search, K8s, Permissions
+  # Responsible for: Auth, Scaffolder, Search, K8s, Permissions
   backend-main:
     profiles: ['standard']
     build:
@@ -121,13 +165,12 @@ services:
         required: false
     environment:
       - CATALOG_SERVICE_URL=http://backend-catalog:7008
+      - TECHDOCS_SERVICE_URL=http://backend-techdocs:7009
       - MAIN_SERVICE_URL=http://backend-main:7007
     ports:
       - '7007:7007'
     depends_on:
       postgres:
-        condition: service_healthy
-      backend-catalog:
         condition: service_healthy
     healthcheck:
       test:
@@ -158,6 +201,7 @@ services:
     restart: unless-stopped
     environment:
       - CATALOG_SERVICE_URL=http://backend-catalog:7008
+      - TECHDOCS_SERVICE_URL=http://backend-techdocs:7009
       - MAIN_SERVICE_URL=http://backend-main:7007
     env_file:
       - path: .env.example
@@ -168,6 +212,8 @@ services:
       - '3000:80'
     depends_on:
       backend-catalog:
+        condition: service_healthy
+      backend-techdocs:
         condition: service_healthy
       backend-main:
         condition: service_healthy
