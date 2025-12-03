@@ -73,6 +73,20 @@ jobs:
               type=sha,prefix={{branch}}-
               type=raw,value=latest,enable={{is_default_branch}}
 
+          # Backend TechDocs service
+          - service: backend-techdocs
+            dockerfile: Dockerfile.backend
+            context: .
+            build-args: |
+              BACKEND_PACKAGE=backend-techdocs
+              CONFIG_FILE=app-config.yaml,app-config.docker.yaml,app-config.techdocs.yaml
+            tags: |
+              type=ref,event=branch
+              type=ref,event=tag
+              type=ref,event=pr
+              type=sha,prefix={{branch}}-
+              type=raw,value=latest,enable={{is_default_branch}}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -125,7 +139,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        service: [frontend, backend-main, backend-catalog]
+        service: [frontend, backend-main, backend-catalog, backend-techdocs]
     steps:
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
