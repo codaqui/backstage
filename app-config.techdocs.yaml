@@ -1,0 +1,42 @@
+# Override config for Backend TechDocs
+# Use with: --config app-config.yaml --config app-config.techdocs.yaml
+# This extends the base app-config.yaml with techdocs-specific overrides
+
+backend:
+  auth:
+    externalAccess:
+      - type: static
+        options:
+          token: ${BACKEND_SECRET}
+          subject: backstage-auth-service-to-service
+  # Must match the external URL that browsers use to access this backend
+  # This is critical for cookie path configuration in TechDocs static auth
+  baseUrl: http://localhost:3000
+  listen:
+    port: 7009
+    host: 0.0.0.0
+  cors:
+    # Only backend-to-backend communication needs CORS
+    # Browser requests come through NGINX, which handles CORS
+    origin:
+      - http://backend-main:7007 # Docker internal
+      - http://backend-catalog:7008 # Docker internal
+      - http://localhost:7007 # Fallback for local testing
+      - http://localhost:7008 # Fallback for local testing
+      - http://localhost:3000 # NGINX origin preservation
+    credentials: true # Required for cookie-based auth
+
+# Reference documentation http://backstage.io/docs/features/techdocs/configuration
+# Note: After experimenting with basic setup, use CI/CD to generate docs
+# and an external cloud storage when deploying TechDocs for production use-case.
+# https://backstage.io/docs/features/techdocs/how-to-guides#how-to-migrate-from-techdocs-basic-to-recommended-deployment-approach
+techdocs:
+  builder: 'local' # Alternatives - 'external'
+  generator:
+    runIn: 'local' # Alternatives - 'local' | 'docker'
+    # pullImage: true
+  publisher:
+    type: 'local' # Alternatives - 'googleGcs' or 'awsS3'. Read documentation for using alternatives.
+  sanitizer:
+    allowedIframeHosts: []
+

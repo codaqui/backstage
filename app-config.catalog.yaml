@@ -22,3 +22,4 @@ backend:
       - http://backend-main:7007 # Docker internal
       - http://localhost:7007 # Fallback for local testing
       - http://localhost:3000 # NGINX origin preservation
+    credentials: true
