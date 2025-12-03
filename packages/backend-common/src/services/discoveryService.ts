@@ -259,7 +259,7 @@ class CustomDiscoveryService implements DiscoveryService {
  * Why backend.baseUrl matters:
  * - OAuth callbacks MUST point to browser-accessible URL
  * - backend-catalog doesn't need it (no browser endpoints)
- * - backend-techdocs doesn't need it (no browser endpoints)
+ * - backend-techdocs DOES need it for cookie-based static file authentication (even though it doesn't have OAuth callbacks like backend-main)
  * - backend-main REQUIRES it for auth plugin (GitHub OAuth, etc.)
  */
 export const customDiscoveryServiceFactory = createServiceFactory({
