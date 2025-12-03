@@ -20,6 +20,10 @@ import {
 import { TechDocsAddons } from '@backstage/plugin-techdocs-react';
 import { ReportIssue } from '@backstage/plugin-techdocs-module-addons-contrib';
 import { UserSettingsPage } from '@backstage/plugin-user-settings';
+import {
+  CatalogGraphPage,
+  catalogGraphPlugin,
+} from '@backstage/plugin-catalog-graph';
 import { apis } from './apis';
 import { entityPage } from './components/catalog/EntityPage';
 import { searchPage } from './components/search/SearchPage';
@@ -42,7 +46,6 @@ import {
 } from '@backstage/core-components';
 import { createApp } from '@backstage/frontend-defaults';
 import { AppRouter, FlatRoutes } from '@backstage/core-app-api';
-import { CatalogGraphPage } from '@backstage/plugin-catalog-graph';
 import { RequirePermission } from '@backstage/plugin-permission-react';
 import { catalogEntityCreatePermission } from '@backstage/plugin-catalog-common/alpha';
 import { NotificationsPage } from '@backstage/plugin-notifications';
@@ -170,6 +173,9 @@ const app = createApp({
     });
     bind(orgPlugin.externalRoutes, {
       catalogIndex: catalogPlugin.routes.catalogIndex,
+    });
+    bind(catalogGraphPlugin.externalRoutes, {
+      catalogEntity: catalogPlugin.routes.catalogEntity,
     });
   },
 });
