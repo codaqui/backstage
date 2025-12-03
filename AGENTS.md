@@ -8,7 +8,7 @@ This is a **Backstage-based developer portal** for the Codaqui community, built 
 
 - **Framework**: Backstage (developer portal platform)
 - **Frontend**: React 18.x with TypeScript, Material-UI v4.12.2
-- **Backend**: Multi-service architecture with 3 specialized backends
+- **Backend**: Multi-service architecture with 4 specialized backends
 - **Build Tool**: Webpack 5.96.0
 - **Database**: PostgreSQL
 - **Testing**: Jest and Playwright
@@ -34,7 +34,7 @@ codaqui-portal/
 │   │
 │   ├── backend-main/           # Main backend (port 7007)
 │   │   ├── src/
-│   │   │   └── index.ts        # Backend configuration with plugins
+│   │   │   └── index.ts        # Auth, Scaffolder, Search, K8s, Permissions
 │   │   └── package.json        # Backend dependencies
 │   │
 │   ├── backend-catalog/        # Catalog backend (port 7008)
@@ -42,6 +42,11 @@ codaqui-portal/
 │   │   │   ├── index.ts        # Catalog-specific backend config
 │   │   │   └── transformers.ts # GitHub org transformers
 │   │   └── package.json        # Catalog backend dependencies
+│   │
+│   ├── backend-techdocs/       # TechDocs backend (port 7009)
+│   │   ├── src/
+│   │   │   └── index.ts        # TechDocs generation and serving
+│   │   └── package.json        # TechDocs backend dependencies
 │   │
 │   └── backend-common/         # Shared backend utilities
 │       ├── src/
@@ -54,6 +59,9 @@ codaqui-portal/
 │       └── package.json        # Common dependencies
 │
 ├── app-config.yaml             # Main application configuration
+├── app-config.main.yaml        # Backend-main specific config
+├── app-config.catalog.yaml     # Backend-catalog specific config
+├── app-config.techdocs.yaml    # Backend-techdocs specific config
 ├── docker-compose.yml          # Multi-service Docker setup
 ├── package.json                # Root monorepo configuration
 └── yarn.lock                   # Yarn Berry lockfile
@@ -98,9 +106,10 @@ yarn start                  # Start frontend dev server
 
 # Building
 yarn build                  # Build current package
-yarn build:backend          # Build backend-main and backend-catalog
+yarn build:backend          # Build all backends (main, catalog, techdocs)
 yarn build:backend-main     # Build backend-main
 yarn build:backend-catalog  # Build backend-catalog
+yarn build:backend-techdocs # Build backend-techdocs
 yarn build:all              # Build all packages
 
 # Testing
@@ -127,6 +136,7 @@ yarn docker:build:frontend  # Build frontend container
 yarn docker:build:backend   # Build backend containers
 yarn docker:build:main      # Build backend-main container
 yarn docker:build:catalog   # Build backend-catalog container
+yarn docker:build:techdocs  # Build backend-techdocs container
 yarn docker:up              # Start containers
 yarn docker:up:build        # Build and start containers
 yarn docker:down            # Stop containers
@@ -359,8 +369,51 @@ class CustomPermissionPolicy implements PermissionPolicy {
 
 The project uses Podman Compose with profiles for different deployment scenarios:
 
-- **standard**: Basic services (postgres, backend-catalog, backend-main, frontend)
+- **standard**: Basic services (postgres, backend-catalog, backend-techdocs, backend-main, frontend)
 - **kubernetes**: Optional kubectl proxy for local Kubernetes testing
+
+```
+                              ┌─────────────────┐
+                              │   PostgreSQL    │
+                              │    (port 5432)  │
+                              └────────┬────────┘
+                                       │
+       ┌───────────────────────────────┼───────────────────────────────┐
+       │                               │                               │
+       ▼                               ▼                               ▼
+┌─────────────────┐           ┌──────────────────┐           ┌───────────────────┐
+│  backend-main   │◀─────────▶│  backend-catalog │◀─────────▶│  backend-techdocs │
+│   (port 7007)   │           │    (port 7008)   │           │    (port 7009)    │
+│                 │           │                  │           │                   │
+│ • Auth          │           │ • Catalog        │           │ • TechDocs        │
+│ • Scaffolder    │           │ • GitHub Org     │           │ • Static files    │
+│ • Search        │           │ • Entity sync    │           │ • Doc generation  │
+│ • Permissions   │           │                  │           │                   │
+│ • Notifications │           │                  │           │                   │
+└────────┬────────┘           └────────┬─────────┘           └─────────┬─────────┘
+         │                             │                               │
+         │         ┌───────────────────┴───────────────────┐           │
+         │         │      Custom Discovery Service         │           │
+         │         │  (service-to-service communication)   │           │
+         │         └───────────────────────────────────────┘           │
+         │                             │                               │
+         └─────────────────────────────┼───────────────────────────────┘
+                                       │
+                              ┌────────▼────────┐
+                              │     NGINX       │
+                              │  (port 3000)    │
+                              │                 │
+                              │ /api/           │──▶ backend-main
+                              │ /api/catalog/   │──▶ backend-catalog
+                              │ /api/techdocs/  │──▶ backend-techdocs
+                              │ /*              │──▶ static frontend
+                              └────────┬────────┘
+                                       │
+                              ┌────────▼────────┐
+                              │     Browser     │
+                              │  (localhost)    │
+                              └─────────────────┘
+```
 
 ```bash
 # Start standard services
@@ -405,6 +458,7 @@ BACKEND_SECRET="change-this-to-a-random-secret-in-production"
 
 # Service URLs (auto-configured in Docker)
 CATALOG_SERVICE_URL="http://localhost:7008"
+TECHDOCS_SERVICE_URL="http://localhost:7009"
 MAIN_SERVICE_URL="http://localhost:7007"
 
 # Kubernetes (optional)

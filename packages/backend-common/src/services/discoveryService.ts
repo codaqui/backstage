@@ -33,6 +33,12 @@ import {
 const CATALOG_PLUGINS = ['catalog'] as const;
 
 /**
+ * Plugin IDs hosted by backend-techdocs (port 7009)
+ * These plugins use TECHDOCS_SERVICE_URL and internal URLs for discovery
+ */
+const TECHDOCS_PLUGINS = ['techdocs'] as const;
+
+/**
  * Plugin IDs hosted by backend-main (port 7007)
  * These plugins use MAIN_SERVICE_URL internally but expose via external URL
  */
@@ -44,7 +50,6 @@ const MAIN_PLUGINS = [
 
   // Features
   'scaffolder',
-  'techdocs',
   'search',
   'kubernetes',
 
@@ -65,6 +70,7 @@ const MAIN_PLUGINS = [
  */
 const DEFAULT_URLS = {
   catalog: 'http://localhost:7008',
+  techdocs: 'http://localhost:7009',
   main: 'http://localhost:7007',
   external: 'http://localhost:7007',
 } as const;
@@ -74,12 +80,14 @@ const DEFAULT_URLS = {
 // ============================================================================
 
 type CatalogPlugin = (typeof CATALOG_PLUGINS)[number];
+type TechdocsPlugin = (typeof TECHDOCS_PLUGINS)[number];
 type MainPlugin = (typeof MAIN_PLUGINS)[number];
-type PluginId = CatalogPlugin | MainPlugin;
+type PluginId = CatalogPlugin | TechdocsPlugin | MainPlugin;
 
 interface DiscoveryConfig {
   externalBaseUrl: string; // Will fallback to mainServiceUrl if not set
   catalogServiceUrl: string;
+  techdocsServiceUrl: string;
   mainServiceUrl: string;
   logger: LoggerService;
 }
@@ -109,18 +117,25 @@ class CustomDiscoveryService implements DiscoveryService {
   private readonly config: DiscoveryConfig;
   private readonly logger: LoggerService;
   private readonly serviceMap: Map<PluginId, string>;
-  private readonly externalPlugins: Set<MainPlugin>;
+  // Plugins that need external URLs for browser access (OAuth, cookies, static files, etc.)
+  private readonly externalPlugins: Set<MainPlugin | TechdocsPlugin>;
 
   constructor(config: DiscoveryConfig) {
     this.config = config;
     this.logger = config.logger.child({ service: 'discovery' });
-    this.externalPlugins = new Set(MAIN_PLUGINS);
+    // TechDocs needs external URL for cookie-based static file authentication
+    // (cookie domain must match browser origin, not internal service name)
+    this.externalPlugins = new Set([...MAIN_PLUGINS, ...TECHDOCS_PLUGINS]);
 
     // Build service map from configuration
     this.serviceMap = new Map([
       ...CATALOG_PLUGINS.map((plugin): [PluginId, string] => [
         plugin,
         config.catalogServiceUrl,
+      ]),
+      ...TECHDOCS_PLUGINS.map((plugin): [PluginId, string] => [
+        plugin,
+        config.techdocsServiceUrl,
       ]),
       ...MAIN_PLUGINS.map((plugin): [PluginId, string] => [
         plugin,
@@ -149,10 +164,12 @@ class CustomDiscoveryService implements DiscoveryService {
     this.logger.debug('📋 Discovery configuration loaded', {
       externalBaseUrl: this.config.externalBaseUrl,
       catalogServiceUrl: this.config.catalogServiceUrl,
+      techdocsServiceUrl: this.config.techdocsServiceUrl,
       mainServiceUrl: this.config.mainServiceUrl,
       usingFallback,
       totalPlugins: this.serviceMap.size,
       catalogPlugins: CATALOG_PLUGINS.length,
+      techdocsPlugins: TECHDOCS_PLUGINS.length,
       mainPlugins: MAIN_PLUGINS.length,
     });
     this.logger.info('✅ Custom Discovery Service configured successfully!');
@@ -184,8 +201,10 @@ class CustomDiscoveryService implements DiscoveryService {
   }
 
   async getExternalBaseUrl(pluginId: string): Promise<string> {
-    // Plugins on backend-main need external URL (for OAuth, browser access, etc.)
-    if (this.externalPlugins.has(pluginId as MainPlugin)) {
+    // Plugins that need external URL for browser access:
+    // - MAIN_PLUGINS: OAuth callbacks, browser-accessible endpoints
+    // - TECHDOCS_PLUGINS: Cookie-based auth for static files (domain must match browser origin)
+    if (this.externalPlugins.has(pluginId as MainPlugin | TechdocsPlugin)) {
       const externalUrl = `${this.config.externalBaseUrl}/api/${pluginId}`;
       this.logger.debug(`🌐 External discovery: ${pluginId}`, {
         pluginId,
@@ -219,6 +238,10 @@ class CustomDiscoveryService implements DiscoveryService {
  *   - Docker: http://backend-catalog:7008
  *   - K8s: http://backend-catalog.namespace.svc.cluster.local:7008
  *
+ * - TECHDOCS_SERVICE_URL: URL for backend-techdocs (default: http://localhost:7009)
+ *   - Docker: http://backend-techdocs:7009
+ *   - K8s: http://backend-techdocs.namespace.svc.cluster.local:7009
+ *
  * - MAIN_SERVICE_URL: URL for backend-main (default: http://localhost:7007)
  *   - Docker: http://backend-main:7007
  *   - K8s: http://backend-main.namespace.svc.cluster.local:7007
@@ -236,6 +259,7 @@ class CustomDiscoveryService implements DiscoveryService {
  * Why backend.baseUrl matters:
  * - OAuth callbacks MUST point to browser-accessible URL
  * - backend-catalog doesn't need it (no browser endpoints)
+ * - backend-techdocs DOES need it for cookie-based static file authentication (even though it doesn't have OAuth callbacks like backend-main)
  * - backend-main REQUIRES it for auth plugin (GitHub OAuth, etc.)
  */
 export const customDiscoveryServiceFactory = createServiceFactory({
@@ -248,17 +272,20 @@ export const customDiscoveryServiceFactory = createServiceFactory({
     // Internal service URLs from environment (used for backend-to-backend calls)
     const catalogServiceUrl =
       process.env['CATALOG_SERVICE_URL'] || DEFAULT_URLS.catalog; // eslint-disable-line dot-notation -- TypeScript requires bracket notation for process.env
+    const techdocsServiceUrl =
+      process.env['TECHDOCS_SERVICE_URL'] || DEFAULT_URLS.techdocs; // eslint-disable-line dot-notation -- TypeScript requires bracket notation for process.env
     const mainServiceUrl = process.env['MAIN_SERVICE_URL'] || DEFAULT_URLS.main; // eslint-disable-line dot-notation -- TypeScript requires bracket notation for process.env
 
     // External URL from app-config (used for OAuth callbacks, browser access)
     // Falls back to mainServiceUrl if backend.baseUrl is not explicitly set
-    // This is important for backend-main (OAuth) but optional for backend-catalog
+    // This is important for backend-main (OAuth) but optional for backend-catalog/backend-techdocs
     const externalBaseUrl =
       config.getOptionalString('backend.baseUrl') || mainServiceUrl;
 
     const discoveryConfig: DiscoveryConfig = {
       externalBaseUrl,
       catalogServiceUrl,
+      techdocsServiceUrl,
       mainServiceUrl,
       logger,
     };

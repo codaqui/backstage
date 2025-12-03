@@ -8,11 +8,10 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 
 ### Prerequisites
 
-- Node.js 22+ (managed via nvm)
+- Node.js 20 or 22 (managed via nvm)
 - Yarn (enabled via corepack)
 - Podman or Docker
 - GitHub Account
-- **Optional**: Local Kubernetes cluster for testing K8s features
 
 ### Initial Setup
 
@@ -41,111 +40,74 @@ Welcome to the Codaqui Backstage Portal! This is a developer portal built with [
 
    - **GitHub OAuth App**: Create at https://github.com/settings/applications/new
    - **GitHub App**: Create at https://github.com/organizations/codaqui/settings/apps/new
-   - **Kubernetes Testing** (Optional): Set `CODAQUI_TESTING_WITH_KUBERNETES=true`
    - See `.env.example` for detailed instructions
 
 4. **Run the portal**
 
-   **Standard mode (without Kubernetes resources):**
-
    ```bash
-   podman compose --profile standard up --build --force-recreate
+   yarn docker:up:build
    ```
 
-   **Kubernetes testing mode (includes K8s resources):**
+   Access the portal at http://localhost:3000
 
-   ```bash
-   # Verify ./default/k8s/deployment.yaml is configured correctly for your K8s cluster
-   kubectl apply -f ./default/k8s/deployment.yaml
+## 🏗️ Architecture Overview
 
-   # Turn on containers for K8s testing (enables both profiles)
-   export CODAQUI_TESTING_WITH_KUBERNETES=true
-   podman compose --profile kubernetes --profile standard up --build --force-recreate
-   ```
+The portal uses a **multi-backend architecture** with NGINX as reverse proxy:
 
-   > **Note**: The `CODAQUI_TESTING_WITH_KUBERNETES` variable controls:
-   >
-   > - Whether Kubernetes resources (`default/k8s/*.yaml`) are loaded in the catalog
-   > - Activation of kubectl-proxy service (port 8001)
-   > - K8s-specific configuration from `app-config.k8s.yaml`
-   >
-   > **Architecture**: Multi-backend microservices with **Custom Discovery Service** (Kubernetes-ready):
+| Service              | Port | Responsibility                        |
+| -------------------- | ---- | ------------------------------------- |
+| **frontend**         | 3000 | NGINX serving React app + API proxy   |
+| **backend-main**     | 7007 | Auth, Scaffolder, Search, Permissions |
+| **backend-catalog**  | 7008 | Catalog, GitHub Org sync              |
+| **backend-techdocs** | 7009 | TechDocs generation and serving       |
+| **postgres**         | 5432 | Database                              |
 
-   ```text
-    ┌─────────────────────────────────────┐
-    │   Browser (localhost:3000)          │
-    └──────────────┬──────────────────────┘
-                   │ All requests via NGINX
-                   │ http://localhost:3000/api/*
-                   │
-    ┌──────────────▼──────────────────────┐
-    │   NGINX (Frontend Container)        │
-    │   - Serves static files             │
-    │   - Acts as API Gateway             │
-    │   - Routes /api/catalog/* → :7008   │
-    │   - Routes /api/* → :7007           │
-    └───────┬──────────────────┬───────────┘
-            │                  │
-     ┌──────▼──────┐    ┌──────▼──────┐
-     │ Backend     │    │ Backend     │
-     │ Catalog     │◄───│ Main        │
-     │ :7008       │    │ :7007       │
-     │ (internal)  │    │ (internal)  │
-     │             │    │             │
-     │ • Catalog   │    │ • Auth      │
-     │ • GitHub    │    │ • Scaffolder│
-     │ • Org Data  │    │ • TechDocs  │
-     └─────────────┘    └─────┬───────┘
-                              │
-                        ┌─────▼───────┐
-                        │ PostgreSQL  │
-                        │ (Port 5432) │
-                        └─────────────┘
+> See [AGENTS.md](./AGENTS.md#-deployment--infrastructure) for the complete architecture diagram and detailed service descriptions.
 
-    Discovery Service (shared via @internal/backend-common)
-    ┌──────────────────────┐
-    │ Plugin → Service URL │
-    ├──────────────────────┤
-    │ catalog   → :7008    │
-    │ auth      → :7007    │
-    │ scaffolder→ :7007    │
-    └──────────────────────┘
-   ```
+### Available Commands
 
-   > **Key Features:**
-   >
-   > - **Custom Discovery Service**: Direct backend-to-backend calls (zero HTTP proxy overhead)
-   > - **Kubernetes Ready**: Uses service names (e.g., `backend-catalog.namespace.svc.cluster.local`)
-   > - **Shared Code**: `@internal/backend-common` for reusable logic (RBAC, discovery, utilities)
-   > - **NGINX Gateway**: Exposes only port 3000 externally
-   > - **Scalable**: Add new backends easily - just import from `@internal/backend-common`
-   >
-   > See [AGENTS.md](./AGENTS.md) for complete architecture and development guidelines
+```bash
+# Development
+yarn docker:up:build    # Build and start all services
+yarn docker:down        # Stop all services
+yarn docker:logs        # View logs
+
+# Code Quality
+yarn quality:check      # Lint + type-check + format
+yarn validate           # Quality + tests
+
+# Testing
+yarn test               # Run unit tests
+yarn test:e2e           # Run Playwright e2e tests
+```
+
+> See [AGENTS.md](./AGENTS.md#available-scripts) for the complete list of scripts.
+
+### Kubernetes Testing (Optional)
+
+For testing Kubernetes integration locally:
+
+```bash
+# Apply K8s resources to your cluster
+kubectl apply -f ./default/k8s/deployment.yaml
+
+# Start with K8s profile enabled
+export CODAQUI_TESTING_WITH_KUBERNETES=true
+yarn docker:up:build
+```
 
 ## 📚 Documentation
 
+- [AGENTS.md](./AGENTS.md) - Complete technical documentation
 - [Backstage Documentation](https://backstage.io/docs)
 
 ## 🤝 Contributing
 
-Contributions are welcome! **Before contributing, please read [`AGENTS.md`](./AGENTS.md)** for detailed technical guidelines, architecture patterns, and best practices.
-
-**For human and AI contributors:**
-
-1. Read [`AGENTS.md`](./AGENTS.md) completely
-2. Fork the repository
-3. Create a feature branch following naming conventions
-4. Make your changes following established patterns
-5. Test locally
-6. Submit a pull request
-
-The `AGENTS.md` file contains:
+Contributions are welcome! **Before contributing, please read [`AGENTS.md`](./AGENTS.md)** for:
 
 - Project architecture and structure
 - Code standards and patterns
-- TypeScript conventions
-- Component/hook/page patterns
-- Theme and branding guidelines
+- Testing guidelines
 - Common pitfalls to avoid
 
 ## 📄 License

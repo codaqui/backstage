@@ -29,7 +29,7 @@ server {
     }
 
     # Catalog API proxy - routes directly to backend-catalog
-    location /api/catalog/ {
+    location ^~ /api/catalog/ {
         proxy_pass ${CATALOG_SERVICE_URL}/api/catalog/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -39,6 +39,27 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # TechDocs API proxy - routes directly to backend-techdocs
+    # Important: Must pass cookies for TechDocs static file authentication
+    location ^~ /api/techdocs/ {
+        proxy_pass ${TECHDOCS_SERVICE_URL}/api/techdocs/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Pass cookies for TechDocs authentication (required for static files)
+        proxy_set_header Cookie $http_cookie;
+        proxy_pass_request_headers on;
+        
+        # Pass Set-Cookie headers from backend to browser
+        proxy_pass_header Set-Cookie;
     }
 
     # Backend API proxy - routes all other APIs to backend-main
