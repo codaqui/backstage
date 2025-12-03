@@ -42,6 +42,7 @@ COPY packages/app/package.json ./packages/app/package.json
 COPY packages/backend-common/package.json ./packages/backend-common/package.json
 COPY packages/backend-catalog/package.json ./packages/backend-catalog/package.json
 COPY packages/backend-main/package.json ./packages/backend-main/package.json
+COPY packages/backend-techdocs/package.json ./packages/backend-techdocs/package.json
 
 # Install dependencies (this will install backstage-cli and other dev dependencies)
 RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked \
