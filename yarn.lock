@@ -15763,11 +15763,28 @@ __metadata:
     "@backstage/plugin-search-backend-module-pg": "npm:^0.5.49"
     "@backstage/plugin-search-backend-module-techdocs": "npm:^0.4.7"
     "@backstage/plugin-signals-backend": "npm:^0.3.9"
-    "@backstage/plugin-techdocs-backend": "npm:^2.1.1"
     "@internal/backend-common": "workspace:^"
     "@types/luxon": "npm:^3"
     app: "link:../app"
     luxon: "npm:^3.0.0"
+    pg: "npm:^8.11.3"
+    webpack: "npm:~5.96.0"
+  languageName: unknown
+  linkType: soft
+
+"backend-techdocs@workspace:packages/backend-techdocs":
+  version: 0.0.0-use.local
+  resolution: "backend-techdocs@workspace:packages/backend-techdocs"
+  dependencies:
+    "@backstage/backend-defaults": "npm:^0.13.0"
+    "@backstage/backend-plugin-api": "npm:^1.4.4"
+    "@backstage/cli": "npm:^0.34.4"
+    "@backstage/plugin-auth-backend": "npm:^0.25.5"
+    "@backstage/plugin-auth-backend-module-github-provider": "npm:^0.3.8"
+    "@backstage/plugin-auth-backend-module-guest-provider": "npm:^0.2.13"
+    "@backstage/plugin-permission-backend": "npm:^0.7.5"
+    "@backstage/plugin-techdocs-backend": "npm:^2.1.1"
+    "@internal/backend-common": "workspace:^"
     pg: "npm:^8.11.3"
     webpack: "npm:~5.96.0"
   languageName: unknown
