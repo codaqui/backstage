@@ -28,6 +28,18 @@ server {
         add_header X-XSS-Protection "1; mode=block" always;
     }
 
+    # ==========================================================================
+    # API PROXY CONFIGURATION
+    # ==========================================================================
+    # All API routes need the same cookie handling for Backstage authentication:
+    # - proxy_set_header Cookie: Pass session cookies from browser to backend
+    # - proxy_pass_header Set-Cookie: Pass new cookies from backend to browser
+    # - proxy_pass_request_headers on: Ensure all headers (including Auth) pass through
+    #
+    # The session cookie (backstage-auth-session) is used by ALL backends to
+    # identify the authenticated user, not just the auth endpoints.
+    # ==========================================================================
+
     # Catalog API proxy - routes directly to backend-catalog
     location ^~ /api/catalog/ {
         proxy_pass ${CATALOG_SERVICE_URL}/api/catalog/;
@@ -39,10 +51,12 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cookie $http_cookie;
+        proxy_pass_request_headers on;
+        proxy_pass_header Set-Cookie;
     }
 
     # TechDocs API proxy - routes directly to backend-techdocs
-    # Important: Must pass cookies for TechDocs static file authentication
     location ^~ /api/techdocs/ {
         proxy_pass ${TECHDOCS_SERVICE_URL}/api/techdocs/;
         proxy_http_version 1.1;
@@ -53,17 +67,12 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Pass cookies for TechDocs authentication (required for static files)
         proxy_set_header Cookie $http_cookie;
         proxy_pass_request_headers on;
-        
-        # Pass Set-Cookie headers from backend to browser
         proxy_pass_header Set-Cookie;
     }
 
-    # Backend API proxy - routes all other APIs to backend-main
-    # Use ^~ so this prefix match takes priority over the static-file regex
+    # Backend Main API proxy - routes all other APIs (auth, scaffolder, search, etc.)
     location ^~ /api/ {
         proxy_pass ${MAIN_SERVICE_URL}/api/;
         proxy_http_version 1.1;
@@ -74,6 +83,9 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cookie $http_cookie;
+        proxy_pass_request_headers on;
+        proxy_pass_header Set-Cookie;
     }
 
     # Health check endpoint
