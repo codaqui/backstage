@@ -15759,6 +15759,8 @@ __metadata:
     "@backstage/plugin-search-backend-module-techdocs": "npm:^0.4.7"
     "@backstage/plugin-signals-backend": "npm:^0.3.9"
     "@internal/backend-common": "workspace:^"
+    "@types/luxon": "npm:^3"
+    luxon: "npm:^3.0.0"
     webpack: "npm:~5.96.0"
   languageName: unknown
   linkType: soft
