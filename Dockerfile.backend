@@ -86,24 +86,17 @@ ARG NODE_OPTIONS
 ARG CONFIG_FILE
 ARG ENABLE_K8S=false
 ARG BACKEND_PACKAGE=backend
-ENV NODE_ENV=${NODE_ENV:-development}
+ENV NODE_ENV=${NODE_ENV:-production}
 ENV NODE_OPTIONS=${NODE_OPTIONS:-"--no-node-snapshot"}
 ENV CONFIG_FILE=${CONFIG_FILE:-"app-config.yaml,app-config.docker.yaml"}
 
-# Set Python interpreter for `node-gyp` to use
-ENV PYTHON=/usr/bin/python3
-
-# Install runtime dependencies (including curl for healthchecks)
+# Install base runtime dependencies (curl for healthchecks)
+# Note: libsqlite3-dev removed - only needed at build time, not runtime
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    python3-venv \
-    libsqlite3-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
 
 # Enable corepack as root before switching to node user
 RUN corepack enable
@@ -112,34 +105,78 @@ RUN corepack enable
 RUN mkdir -p /home/node/.cache/node/corepack && \
     chown -R node:node /home/node/.cache
 
-# TechDocs Requirements
-ENV VIRTUAL_ENV=/opt/venv
-RUN python3 -m venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-RUN pip3 install mkdocs-techdocs-core
-# End of TechDocs Requirements
+# TechDocs Requirements - CONDITIONAL
+# Only install Python and mkdocs-techdocs-core for backend-techdocs
+# This saves ~200MB for backend-main and backend-catalog images
+ARG BACKEND_PACKAGE
+RUN if [ "${BACKEND_PACKAGE}" = "backend-techdocs" ]; then \
+      echo "📚 Installing TechDocs dependencies for backend-techdocs..."; \
+      apt-get update && \
+      apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+        python3-venv && \
+      rm -rf /var/lib/apt/lists/* && \
+      python3 -m venv /opt/venv && \
+      /opt/venv/bin/pip install --no-cache-dir mkdocs-techdocs-core && \
+      echo "✅ TechDocs dependencies installed"; \
+    else \
+      echo "⏭️  Skipping TechDocs dependencies (not backend-techdocs)"; \
+    fi
+
+# Set PATH for venv (harmless if venv doesn't exist)
+ENV PATH="/opt/venv/bin:$PATH"
 
 # From here on we use the least-privileged `node` user to run the backend.
 USER node
 
 WORKDIR /app
 
-# Copy files needed by Yarn
-COPY --from=build --chown=node:node /app/.yarn /app/.yarn
+# Copy only essential Yarn files (releases needed for yarn to work)
+# Skip cache and other non-essential files
+COPY --from=build --chown=node:node /app/.yarn/releases /app/.yarn/releases
 COPY --from=build --chown=node:node /app/.yarnrc.yml ./
 COPY --from=build --chown=node:node /app/backstage.json ./
 
-# Copy built backend and dependencies (based on BACKEND_PACKAGE)
+# Copy built backend skeleton (package.json structure)
 ARG BACKEND_PACKAGE
 COPY --from=build --chown=node:node /app/yarn.lock /app/package.json ./
 COPY --from=build --chown=node:node /app/packages/${BACKEND_PACKAGE}/dist/skeleton.tar.gz ./
 RUN tar xzf skeleton.tar.gz && rm skeleton.tar.gz
 
-# Install production dependencies
+# Install ONLY production dependencies for the specific backend
+#
+# WHY THE CLEANUP? npm packages often ship with unnecessary files:
+# - Test suites (test/, __tests__/)
+# - Documentation (docs/, *.md)  
+# - Examples (example/, examples/)
+# - Source maps (*.map)
+# This is a known npm ecosystem issue - packages don't strip these on publish.
+# The cleanup below reduces image size by ~100-200MB.
+#
+ARG BACKEND_PACKAGE
 RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid=1000 \
-    yarn workspaces focus --all --production && rm -rf "$(yarn cache clean)"
+    yarn workspaces focus ${BACKEND_PACKAGE} --production && \
+    yarn cache clean && \
+    # Remove unnecessary directories (single find, OR conditions)
+    find node_modules -type d \( \
+        -name "test" -o -name "tests" -o -name "__tests__" -o \
+        -name "docs" -o -name ".github" -o \
+        -name "example" -o -name "examples" \
+    \) -exec rm -rf {} + 2>/dev/null || true && \
+    # Remove unnecessary files  
+    find node_modules -type f \( \
+        -name "*.md" -o -name "*.map" -o \
+        -name "CHANGELOG*" -o -name "LICENSE*" \
+    \) -delete 2>/dev/null || true && \
+    # Remove dev packages that slip through --production
+    rm -rf node_modules/@types node_modules/@typescript-eslint \
+           node_modules/eslint* node_modules/prettier \
+           node_modules/jest* node_modules/@jest \
+           node_modules/@testing-library 2>/dev/null || true && \
+    echo "✅ Production dependencies installed"
 
-# Copy the built backend bundle and config files (based on BACKEND_PACKAGE)
+# Copy the built backend bundle
 ARG BACKEND_PACKAGE
 COPY --from=build --chown=node:node /app/packages/${BACKEND_PACKAGE}/dist/bundle.tar.gz ./
 RUN tar xzf bundle.tar.gz && rm bundle.tar.gz

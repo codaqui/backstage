@@ -6090,7 +6090,9 @@ __metadata:
     "@backstage/plugin-catalog-backend": "npm:^3.1.2"
     "@backstage/plugin-permission-common": "npm:^0.9.2"
     "@backstage/plugin-permission-node": "npm:^0.10.5"
+    "@types/luxon": "npm:^3"
     luxon: "npm:^3.0.0"
+    pg: "npm:^8.11.3"
     typescript: "npm:~5.6.0"
     webpack: "npm:~5.96.0"
   languageName: unknown
@@ -15072,12 +15074,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"app@link:../app::locator=backend-main%40workspace%3Apackages%2Fbackend-main":
-  version: 0.0.0-use.local
-  resolution: "app@link:../app::locator=backend-main%40workspace%3Apackages%2Fbackend-main"
-  languageName: node
-  linkType: soft
-
 "app@workspace:packages/app":
   version: 0.0.0-use.local
   resolution: "app@workspace:packages/app"
@@ -15731,7 +15727,6 @@ __metadata:
     "@backstage/plugin-catalog-backend-module-scaffolder-entity-model": "npm:^0.2.14"
     "@backstage/plugin-permission-backend": "npm:^0.7.6"
     "@internal/backend-common": "workspace:^"
-    pg: "npm:^8.11.3"
     webpack: "npm:~5.96.0"
   languageName: unknown
   linkType: soft
@@ -15764,10 +15759,6 @@ __metadata:
     "@backstage/plugin-search-backend-module-techdocs": "npm:^0.4.7"
     "@backstage/plugin-signals-backend": "npm:^0.3.9"
     "@internal/backend-common": "workspace:^"
-    "@types/luxon": "npm:^3"
-    app: "link:../app"
-    luxon: "npm:^3.0.0"
-    pg: "npm:^8.11.3"
     webpack: "npm:~5.96.0"
   languageName: unknown
   linkType: soft
@@ -15785,7 +15776,6 @@ __metadata:
     "@backstage/plugin-permission-backend": "npm:^0.7.5"
     "@backstage/plugin-techdocs-backend": "npm:^2.1.1"
     "@internal/backend-common": "workspace:^"
-    pg: "npm:^8.11.3"
     webpack: "npm:~5.96.0"
   languageName: unknown
   linkType: soft
