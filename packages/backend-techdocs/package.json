@@ -15,7 +15,7 @@
     "clean": "backstage-cli package clean"
   },
   "dependencies": {
-    "@backstage/backend-defaults": "^0.13.0",
+    "@backstage/backend-defaults": "^0.15.2",
     "@backstage/backend-plugin-api": "^1.4.4",
     "@backstage/plugin-auth-backend": "^0.25.5",
     "@backstage/plugin-auth-backend-module-github-provider": "^0.3.8",
@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@backstage/cli": "^0.34.4",
-    "webpack": "~5.96.0"
+    "webpack": "~5.105.2"
   },
   "files": [
     "dist"

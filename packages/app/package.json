@@ -54,7 +54,7 @@
     "react-router": "^6.3.0",
     "react-router-dom": "^6.3.0",
     "react-use": "^17.6.0",
-    "webpack": "~5.96.0"
+    "webpack": "~5.105.2"
   },
   "devDependencies": {
     "@backstage/test-utils": "^1.7.12",
