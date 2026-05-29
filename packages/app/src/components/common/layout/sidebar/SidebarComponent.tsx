@@ -129,7 +129,7 @@ const SidebarFooter = (): JSX.Element | null => {
   );
 };
 
-export const Root = ({ children }: PropsWithChildren<{}>): JSX.Element => (
+export const SidebarComponent = ({ children }: PropsWithChildren<{}>): JSX.Element => (
   <SidebarPage>
     <Sidebar>
       <SidebarLogo />
