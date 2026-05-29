@@ -22,7 +22,7 @@ import SchoolIcon from '@material-ui/icons/School';
 import WhatsAppIcon from '@material-ui/icons/WhatsApp';
 import { useNavigate } from 'react-router-dom';
 import { useResourceCounts } from '../../hooks';
-import { CodaquiWelcomeCard } from './CodaquiWelcomeCard';
+import { CodaquiWelcomeCard } from '../../components/common/ui/WelcomeCard';
 
 const useStyles = makeStyles(theme => ({
   searchBar: {
@@ -123,7 +123,7 @@ const CommunityResource = ({
   );
 };
 
-export const HomePage = (): JSX.Element => {
+const HomePage = (): JSX.Element => {
   const classes = useStyles();
   const navigate = useNavigate();
   const { counts, loading: countsLoading } = useResourceCounts();
@@ -271,3 +271,5 @@ export const HomePage = (): JSX.Element => {
     </SearchContextProvider>
   );
 };
+
+export default HomePage
