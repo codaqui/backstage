@@ -1,2 +1,2 @@
-export { HomePage } from './HomePage';
 export { CodaquiWelcomeCard } from './CodaquiWelcomeCard';
+export { CommunityResource } from './CommunityResource';
