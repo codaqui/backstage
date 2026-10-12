@@ -5,24 +5,15 @@ import {
 } from '@backstage/plugin-home';
 import { HomePageSearchBar } from '@backstage/plugin-search';
 import { SearchContextProvider } from '@backstage/plugin-search-react';
-import {
-  Box,
-  Card,
-  CardActionArea,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Grid,
-  makeStyles,
-  Typography,
-} from '@material-ui/core';
+import { CircularProgress, Grid, Typography } from '@material-ui/core';
+import { makeStyles } from '@material-ui/core/styles';
 import ChatIcon from '@material-ui/icons/Chat';
 import PublicIcon from '@material-ui/icons/Public';
 import SchoolIcon from '@material-ui/icons/School';
 import WhatsAppIcon from '@material-ui/icons/WhatsApp';
 import { useNavigate } from 'react-router-dom';
+import { CodaquiWelcomeCard, CommunityResource } from '../../components/home';
 import { useResourceCounts } from '../../hooks';
-import { CodaquiWelcomeCard } from './CodaquiWelcomeCard';
 
 const useStyles = makeStyles(theme => ({
   searchBar: {
@@ -42,16 +33,6 @@ const useStyles = makeStyles(theme => ({
     color: theme.palette.common.white,
     borderRadius: theme.shape.borderRadius,
   },
-  categoryCard: {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-    '&:hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: theme.shadows[8],
-    },
-  },
   categoryIcon: {
     fontSize: 48,
     marginBottom: theme.spacing(2),
@@ -66,12 +47,6 @@ const useStyles = makeStyles(theme => ({
   socialCard: {
     borderLeft: `4px solid #1DA1F2`,
   },
-  chipContainer: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: theme.spacing(1),
-    marginTop: theme.spacing(2),
-  },
   statsBox: {
     display: 'flex',
     justifyContent: 'space-around',
@@ -81,47 +56,6 @@ const useStyles = makeStyles(theme => ({
     textAlign: 'center',
   },
 }));
-
-const CommunityResource = ({
-  title,
-  description,
-  icon,
-  chips,
-  cardClass,
-  onClick,
-}: {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  chips: string[];
-  cardClass: string;
-  onClick?: () => void;
-}): JSX.Element => {
-  const classes = useStyles();
-
-  return (
-    <Card className={`${classes.categoryCard} ${cardClass}`}>
-      <CardActionArea onClick={onClick}>
-        <CardContent>
-          <Box display="flex" justifyContent="center">
-            {icon}
-          </Box>
-          <Typography variant="h5" component="h3" gutterBottom align="center">
-            {title}
-          </Typography>
-          <Typography variant="body2" color="textSecondary" paragraph>
-            {description}
-          </Typography>
-          <div className={classes.chipContainer}>
-            {chips.map(chip => (
-              <Chip key={chip} label={chip} size="small" color="primary" />
-            ))}
-          </div>
-        </CardContent>
-      </CardActionArea>
-    </Card>
-  );
-};
 
 export const HomePage = (): JSX.Element => {
   const classes = useStyles();

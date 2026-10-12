@@ -22,9 +22,13 @@ codaqui-portal/
 ├── packages/
 │   ├── app/                    # React frontend application
 │   │   ├── src/
-│   │   │   ├── components/     # Custom React components
+│   │   │   ├── components/     # Reusable React components
 │   │   │   │   └── home/
-│   │   │   │       └── CodaquiWelcomeCard.tsx
+│   │   │   │       ├── CodaquiWelcomeCard.tsx
+│   │   │   │       └── CommunityResource.tsx
+│   │   │   ├── pages/          # Route-level pages
+│   │   │   │   └── home/
+│   │   │   │       └── HomePage.tsx
 │   │   │   ├── hooks/          # Custom React hooks
 │   │   │   │   └── useResourceCounts.ts
 │   │   │   ├── theme/          # Material-UI theme configuration
